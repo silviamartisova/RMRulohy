@@ -1,6 +1,6 @@
-# RMR ULOHY
+# RMR ÚLOHY
 
-Tento repozitár bude obsahovať RMR ulohy 1-4.
+Tento repozitár bude obsahovať RMR úlohy 1-4.
 
 ## Stav úloh
 Úloha 1: nezačatá
