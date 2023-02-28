@@ -1,4 +1,4 @@
-    #include "mainwindow.h"
+#include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QPainter>
 #include <math.h>
@@ -14,6 +14,7 @@
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
+
 {
 
     //tu je napevno nastavena ip. treba zmenit na to co ste si zadali do text boxu alebo nejaku inu pevnu. co bude spravna
@@ -26,8 +27,8 @@ MainWindow::MainWindow(QWidget *parent) :
     actIndex=-1;
     useCamera1=false;
 
-
-
+    pointsModel = new PointTableModel();
+    ui->tbPoints->setModel(pointsModel);
 
     datacounter=0;
 
@@ -113,6 +114,7 @@ int MainWindow::processThisRobot(TKobukiData robotdata)
 ///TU PISTE KOD... TOTO JE TO MIESTO KED NEVIETE KDE ZACAT,TAK JE TO NAOZAJ TU. AK AJ TAK NEVIETE, SPYTAJTE SA CVICIACEHO MA TU NATO STRING KTORY DA DO HLADANIA XXX
 
     updateRobotState(robotdata.EncoderLeft, robotdata.EncoderRight);
+    if(regulating)regulate();
 
     if(datacounter%5)
     {
@@ -165,7 +167,10 @@ int MainWindow::processThisCamera(cv::Mat cameraData)
 }
 void MainWindow::on_pushButton_9_clicked() //start button
 {
-    if(connected) return;
+    if(connected){
+        return;
+    }
+
     forwardspeed=0;
     rotationspeed=0;
     //tu sa nastartuju vlakna ktore citaju data z lidaru a robota
@@ -257,14 +262,6 @@ void MainWindow::getNewFrame()
 
 void MainWindow::updateRobotState(long double encoderLeft, long double encoderRight) {
 
-//    static bool firstRun = true;
-//    if(firstRun){
-//        oldEncoderLeft = robotdata.EncoderLeft;
-//        oldEncoderRight = robotdata.EncoderRight;
-//        firstRun = false;
-//        return;
-//    }
-
     // calculate the difference in encoder counts for each wheel
     long double deltaEncoderLeft = encoderLeft - oldEncoderLeft;
     long double deltaEncoderRight = encoderRight - oldEncoderRight;
@@ -288,8 +285,8 @@ void MainWindow::updateRobotState(long double encoderLeft, long double encoderRi
     // calculate the distance traveled by each wheel
     long double distanceLeft = deltaEncoderLeft * tickToMeter;
     long double distanceRight = deltaEncoderRight * tickToMeter;
-    cout << "DistanceLeft: " << distanceLeft;
-    cout << " DistanceRight: " << distanceRight;
+//    cout << "DistanceLeft: " << distanceLeft;
+//    cout << " DistanceRight: " << distanceRight;
 
     // calculate the average distance traveled by the robot
     long double distance = (distanceLeft + distanceRight) / 2;
@@ -319,7 +316,7 @@ void MainWindow::updateRobotState(long double encoderLeft, long double encoderRi
     oldEncoderLeft = encoderLeft;
     oldEncoderRight = encoderRight;
 
-    cout << "x: " << state.x << "; y: " << state.y << "; angle: " << state.angle << endl;
+//    cout << "x: " << state.x << "; y: " << state.y << "; angle: " << state.angle << endl;
 }
 
 
@@ -329,5 +326,69 @@ void MainWindow::on_pushButton_8_clicked()
     state.angle = 0;
     state.x = 0;
     state.y = 0;
+}
+
+void MainWindow::regulate(){
+    Point destinationPoint = pointsModel->front();
+    if((abs(state.x - destinationPoint.x) < 0.01) && (abs(state.y - destinationPoint.y) < 0.01)){
+        pointsModel->pop_front();
+        if(pointsModel->rowCount() == 0)toogleRegulationButton();
+        cout << "point x: " << destinationPoint.x << " y: " << destinationPoint.y << " reached!!" << endl;
+        robot.setTranslationSpeed(0);
+        return;
+    }
+
+    // Calculate the distance and angle between the robot and the destination
+    float dx = destinationPoint.x - state.x;
+    float dy = destinationPoint.y - state.y;
+    float distance = std::sqrt(dx*dx + dy*dy);
+    float angle = std::atan2(dy, dx) - state.angle;
+
+    // Adjust the robot's movement based on the distance and angle
+    int translationSpeed = distance * maxForwardspeed;
+    float rotationSpeed = angle * maxRotationspeed;
+
+    robot.setArcSpeed(translationSpeed, translationSpeed/rotationSpeed);
+}
+
+float MainWindow::checkLineEdit(QLineEdit *lineEdit) {
+    QString input = lineEdit->text();
+    bool ok = false;
+    float value = input.toFloat(&ok);
+    if (input.isEmpty()) {
+        cout << "Error " << "Input is empty" << endl;
+    } else if (!ok) {
+        cout << "Error " << "Input is not a valid number" << endl;
+    } else {
+        return value;
+    }
+    return NULL;
+}
+
+void MainWindow::on_btnAddPoint_clicked()
+{
+    float x = checkLineEdit(ui->leXpoint);
+    float y = checkLineEdit(ui->leYpoint);
+    if(x != NULL && y != NULL){
+        pointsModel->push_back(Point {x, y});
+        ui->leXpoint->clear();
+        ui->leYpoint->clear();
+    }
+}
+
+void MainWindow::toogleRegulationButton(){
+    if(ui->btnRegulation->text().compare("StartRegulation")){
+        ui->btnRegulation->setText("StopRegulation");
+        regulating = true;
+    }else{
+        ui->btnRegulation->setText("StartRegulation");
+        regulating = false;
+    }
+}
+
+
+void MainWindow::on_btnRegulation_clicked()
+{
+    toogleRegulationButton();
 }
 

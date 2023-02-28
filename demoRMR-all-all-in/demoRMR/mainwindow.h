@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "qlineedit.h"
 #include <QMainWindow>
 #include <QTimer>
 #ifdef _WIN32
@@ -28,15 +29,98 @@
 
 #include <QJoysticks.h>
 
+#include <QAbstractTableModel>
+#include <list>
+
+
+struct Point {
+    float x;
+    float y;
+};
+
+class PointTableModel : public QAbstractTableModel
+{
+public:
+    PointTableModel(QObject *parent = nullptr)
+            : QAbstractTableModel(parent)
+    {
+    }
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override
+    {
+        return m_points.size();
+    }
+
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override
+    {
+        return 2; // Assuming Point has x and y coordinates
+    }
+
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override
+    {
+        if (!index.isValid())
+            return QVariant();
+
+        if (index.row() >= m_points.size())
+            return QVariant();
+
+        const Point &point = *std::next(m_points.begin(), index.row());
+
+        if (role == Qt::DisplayRole)
+        {
+            if (index.column() == 0)
+                return QVariant(point.x);
+            else if (index.column() == 1)
+                return QVariant(point.y);
+        }
+
+        return QVariant();
+    }
+
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override
+    {
+        if (role == Qt::DisplayRole && orientation == Qt::Horizontal)
+        {
+            if (section == 0)
+                return QVariant("X");
+            else if (section == 1)
+                return QVariant("Y");
+        }
+
+        return QVariant();
+    }
+
+    void push_back(Point point){
+        m_points.push_back(point);
+        newItemInserted();
+    }
+
+    void pop_front(){
+        m_points.pop_front();
+        newItemInserted();
+    }
+
+    Point front(){
+        return m_points.front();
+    }
+
+
+
+private:
+    std::list<Point> m_points;
+
+    void newItemInserted(){
+        beginInsertRows(QModelIndex(), rowCount(), rowCount());
+        endInsertRows();
+    }
+};
+
+
+
 struct RobotState {
     long double x; // position in meters
     long double y; // position in meters
     long double angle; // orientation in radians
-};
-
-struct Points {
-    int x;
-    int y;
 };
 
 namespace Ui {
@@ -83,6 +167,10 @@ private slots:
 
     void on_pushButton_8_clicked();
 
+    void on_btnAddPoint_clicked();
+
+    void on_btnRegulation_clicked();
+
 private:
 
     //--skuste tu nic nevymazat... pridavajte co chcete, ale pri odoberani by sa mohol stat nejaky drobny problem, co bude vyhadzovat chyby
@@ -104,13 +192,21 @@ private:
      long double tickToMeter = 0.000085292090497737556558; // [m/tick]
      long double wheelbase = 0.23;
      const unsigned short ENCODER_MAX = 65535;  // define maximum encoder value
+     double maxForwardspeed = 400;//mm/s
+     double maxRotationspeed = 3.14159;//omega/s
 
      long double oldEncoderLeft;
      long double oldEncoderRight;
      RobotState state = {0, 0, 0}; // starting at (0, 0)
-     std::list<Points> destinationPoints;
+     PointTableModel *pointsModel;
+
+     bool regulating = false;
+     float checkLineEdit(QLineEdit *lineEdit);
+     void toogleRegulationButton();
 
      void updateRobotState(long double encoderLeft, long double encoderRight);
+
+     void regulate();
 
 public slots:
      void setUiValues(double robotX,double robotY,double robotFi);

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>788</width>
-    <height>608</height>
+    <width>815</width>
+    <height>647</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -186,7 +186,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="pushButton_7">
+       <widget class="QPushButton" name="btnRegulation">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -200,7 +200,45 @@
          </size>
         </property>
         <property name="text">
-         <string>Reset Laser</string>
+         <string>StartRegulator</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTableView" name="tbPoints"/>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>X:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="leXpoint">
+        <property name="text">
+         <string>0.5</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_5">
+        <property name="text">
+         <string>Y:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="leYpoint">
+        <property name="text">
+         <string>0.5</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnAddPoint">
+        <property name="text">
+         <string>AddPoint</string>
         </property>
        </widget>
       </item>
@@ -299,8 +337,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>788</width>
-     <height>21</height>
+     <width>815</width>
+     <height>26</height>
     </rect>
    </property>
   </widget>
