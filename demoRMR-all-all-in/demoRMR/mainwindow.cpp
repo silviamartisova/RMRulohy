@@ -30,6 +30,10 @@ MainWindow::MainWindow(QWidget *parent) :
     pointsModel = new PointTableModel();
     ui->tbPoints->setModel(pointsModel);
 
+    pointsModel->push_back(Point{1, 0});
+    pointsModel->push_back(Point{0.2, 0});
+    pointsModel->push_back(Point{1.2, -0.2});
+
     datacounter=0;
 
 
@@ -85,11 +89,13 @@ void MainWindow::paintEvent(QPaintEvent *event)
 
 /// toto je slot. niekde v kode existuje signal, ktory je prepojeny. pouziva sa napriklad (v tomto pripade) ak chcete dostat data z jedneho vlakna (robot) do ineho (ui)
 /// prepojenie signal slot je vo funkcii  on_pushButton_9_clicked
-void  MainWindow::setUiValues(double robotX,double robotY,double robotFi)
+void  MainWindow::setUiValues()
 {
-     ui->lineEdit_2->setText(QString::number(robotX));
-     ui->lineEdit_3->setText(QString::number(robotY));
-     ui->lineEdit_4->setText(QString::number(robotFi));
+     ui->lineEdit_2->setText(QString::number(state.x));
+     ui->lineEdit_3->setText(QString::number(state.y));
+     ui->lineEdit_4->setText(QString::number(state.angle));
+     ui->leTranslationSpeed->setText(QString::number(state.forwardSpeed));
+     ui->leRotationSpeed->setText(QString::number(state.angularSpeed));
 }
 
 ///toto je calback na data z robota, ktory ste podhodili robotu vo funkcii on_pushButton_9_clicked
@@ -126,7 +132,7 @@ int MainWindow::processThisRobot(TKobukiData robotdata)
                 /// okno pocuva vo svojom slote a vasu premennu nastavi tak ako chcete. prikaz emit to presne takto spravi
                 /// viac o signal slotoch tu: https://doc.qt.io/qt-5/signalsandslots.html
         ///posielame sem nezmysli.. pohrajte sa nech sem idu zmysluplne veci
-        emit uiValuesChanged(state.x, state.y, state.angle);
+        emit uiValuesChanged();
         ///toto neodporucam na nejake komplikovane struktury.signal slot robi kopiu dat. radsej vtedy posielajte
         /// prazdny signal a slot bude vykreslovat strukturu (vtedy ju musite mat samozrejme ako member premmennu v mainwindow.ak u niekoho najdem globalnu premennu,tak bude cistit bludisko zubnou kefkou.. kefku dodam)
         /// vtedy ale odporucam pouzit mutex, aby sa vam nestalo ze budete pocas vypisovania prepisovat niekde inde
@@ -171,10 +177,10 @@ void MainWindow::on_pushButton_9_clicked() //start button
         return;
     }
 
-    forwardspeed=0;
-    rotationspeed=0;
+    state.forwardSpeed=0;
+    state.angularSpeed=0;
     //tu sa nastartuju vlakna ktore citaju data z lidaru a robota
-    connect(this,SIGNAL(uiValuesChanged(double,double,double)),this,SLOT(setUiValues(double,double,double)));
+    connect(this,SIGNAL(uiValuesChanged()),this,SLOT(setUiValues()));
 
     ///setovanie veci na komunikaciu s robotom/lidarom/kamerou.. su tam adresa porty a callback.. laser ma ze sa da dat callback aj ako lambda.
     /// lambdy su super, setria miesto a ak su rozumnej dlzky,tak aj prehladnost... ak ste o nich nic nepoculi poradte sa s vasim doktorom alebo lekarnikom...
@@ -196,8 +202,8 @@ void MainWindow::on_pushButton_9_clicked() //start button
     /// co vas vlastne zaujima? citanie komentov asi nie, inak by ste citali toto a ze tu je blbosti
     connect(
         instance, &QJoysticks::axisChanged,
-        [this]( const int js, const int axis, const qreal value) { if(/*js==0 &&*/ axis==1){forwardspeed=-value*300;}
-            if(/*js==0 &&*/ axis==0){rotationspeed=-value*(3.14159/2.0);}}
+        [this]( const int js, const int axis, const qreal value) { if(/*js==0 &&*/ axis==1){state.forwardSpeed=-value*300;}
+            if(/*js==0 &&*/ axis==0){state.angularSpeed=-value*(3.14159/2.0);}}
     );
 
     oldEncoderLeft = robotdata.EncoderLeft;
@@ -232,7 +238,7 @@ robot.setRotationSpeed(-3.14159/2);
 
 void MainWindow::on_pushButton_4_clicked() //stop
 {
-    robot.setTranslationSpeed(0);
+    stopRobot();
 
 }
 
@@ -329,12 +335,20 @@ void MainWindow::on_pushButton_8_clicked()
 }
 
 void MainWindow::regulate(){
+
+    cout << "forwarSpeed: " << state.forwardSpeed << " angular speed: " << state.angularSpeed << endl;
+
     Point destinationPoint = pointsModel->front();
+
+    // Destination reached
     if((abs(state.x - destinationPoint.x) < 0.01) && (abs(state.y - destinationPoint.y) < 0.01)){
         pointsModel->pop_front();
-        if(pointsModel->rowCount() == 0)toogleRegulationButton();
         cout << "point x: " << destinationPoint.x << " y: " << destinationPoint.y << " reached!!" << endl;
-        robot.setTranslationSpeed(0);
+
+        // There are no more points to go
+        if(pointsModel->rowCount() == 0){
+            toogleRegulationButton();
+        }
         return;
     }
 
@@ -343,12 +357,33 @@ void MainWindow::regulate(){
     float dy = destinationPoint.y - state.y;
     float distance = std::sqrt(dx*dx + dy*dy);
     float angle = std::atan2(dy, dx) - state.angle;
+    angle = fmod(angle, 3.14159265358979*2);
 
-    // Adjust the robot's movement based on the distance and angle
-    int translationSpeed = distance * maxForwardspeed;
-    float rotationSpeed = angle * maxRotationspeed;
+    // Check if angle isnt too big
+    if(abs(angle) > 0.785398){ // 45 degrees
+        state.forwardSpeed = 0;
+        evaluateAngleRamp(angle);
+        evaluateSaturation();
+        robot.setRotationSpeed(state.angularSpeed);
+        cout << "angle is too big!  " << angle << endl;
+        return;
+    }
 
-    robot.setArcSpeed(translationSpeed, translationSpeed/rotationSpeed);
+    // Create ramp effect, if needed
+    double acceleration = distance * regulatorTranslateProportionalElement - state.forwardSpeed;
+    if(acceleration > rampTranslateConstant){
+        state.forwardSpeed += rampTranslateConstant;
+    }else{
+        state.forwardSpeed = distance * regulatorTranslateProportionalElement;
+    }
+    evaluateAngleRamp(angle);
+    evaluateSaturation();
+
+    if(state.angularSpeed == 0){
+        robot.setTranslationSpeed(state.forwardSpeed);
+    }else
+    robot.setArcSpeed(state.forwardSpeed, state.forwardSpeed/state.angularSpeed);
+
 }
 
 float MainWindow::checkLineEdit(QLineEdit *lineEdit) {
@@ -362,14 +397,14 @@ float MainWindow::checkLineEdit(QLineEdit *lineEdit) {
     } else {
         return value;
     }
-    return NULL;
+    return 0.01;
 }
 
 void MainWindow::on_btnAddPoint_clicked()
 {
     float x = checkLineEdit(ui->leXpoint);
     float y = checkLineEdit(ui->leYpoint);
-    if(x != NULL && y != NULL){
+    if(x != 0.01f && y != 0.01f){
         pointsModel->push_back(Point {x, y});
         ui->leXpoint->clear();
         ui->leYpoint->clear();
@@ -377,13 +412,57 @@ void MainWindow::on_btnAddPoint_clicked()
 }
 
 void MainWindow::toogleRegulationButton(){
-    if(ui->btnRegulation->text().compare("StartRegulation")){
+    if(ui->btnRegulation->text() == "StartRegulation"){
         ui->btnRegulation->setText("StopRegulation");
         regulating = true;
+        cout << "Starting regulation" << endl;
     }else{
         ui->btnRegulation->setText("StartRegulation");
         regulating = false;
+        stopRobot();
+        cout << "StopingRegulation" << endl;
     }
+}
+
+void MainWindow::stopRobot(){
+    robot.setTranslationSpeed(0);
+    state.angularSpeed = 0;
+    state.forwardSpeed = 0;
+}
+
+void MainWindow::evaluateSaturation(){
+    // Saturation
+    if(state.forwardSpeed > translateSaturationValue){
+        state.forwardSpeed = translateSaturationValue;
+    }
+    else if(state.forwardSpeed < -translateSaturationValue){
+        state.forwardSpeed = -translateSaturationValue;
+    }
+
+    if(state.angularSpeed > angularSaturationValue){
+        state.angularSpeed = angularSaturationValue;
+    }
+    else if(state.angularSpeed < -angularSaturationValue){
+        state.angularSpeed = -angularSaturationValue;
+    }
+}
+
+void MainWindow::evaluateAngleRamp(float angle){
+
+    double acceleration = angle * regulatorAngularProportionalElement - state.angularSpeed;
+    if(acceleration > rampAngularConstant){
+        state.angularSpeed += rampAngularConstant;
+    }else{
+        state.angularSpeed = angle * regulatorAngularProportionalElement;
+    }
+
+    // mozno zmazat/upravit, aby sa nepretacal by nepresnostiach
+//    if(acceleration < -rampAngularConstant){
+//        state.angularSpeed -= rampAngularConstant;
+//    }else{
+//        state.angularSpeed = angle * regulatorAngularProportionalElement;
+//    }
+    ////////////////////////////////////////////////////////////
 }
 
 

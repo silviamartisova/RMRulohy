@@ -26,7 +26,6 @@
 #include "opencv2/videoio.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "robot.h"
-
 #include <QJoysticks.h>
 
 #include <QAbstractTableModel>
@@ -118,9 +117,11 @@ private:
 
 
 struct RobotState {
-    long double x; // position in meters
-    long double y; // position in meters
-    long double angle; // orientation in radians
+    double x; // position in meters
+    double y; // position in meters
+    double angle; // orientation in radians
+    double forwardSpeed; //mm/s
+    double angularSpeed; //omega/s
 };
 
 namespace Ui {
@@ -186,14 +187,15 @@ private:
 
      QJoysticks *instance;
      bool connected = false;
-
-     double forwardspeed;//mm/s
-     double rotationspeed;//omega/s
      long double tickToMeter = 0.000085292090497737556558; // [m/tick]
      long double wheelbase = 0.23;
      const unsigned short ENCODER_MAX = 65535;  // define maximum encoder value
-     double maxForwardspeed = 400;//mm/s
-     double maxRotationspeed = 3.14159;//omega/s
+     float regulatorTranslateProportionalElement = 1000;
+     float regulatorAngularProportionalElement = 3.141592*2;
+     int rampTranslateConstant = 10; // mm/s
+     float rampAngularConstant = 0.1; // mm/s
+     int translateSaturationValue = 400;//mm/s;
+     float angularSaturationValue = 3.14159;//omega/s
 
      long double oldEncoderLeft;
      long double oldEncoderRight;
@@ -205,13 +207,15 @@ private:
      void toogleRegulationButton();
 
      void updateRobotState(long double encoderLeft, long double encoderRight);
-
      void regulate();
+     void stopRobot();
+     void evaluateSaturation();
+     void evaluateAngleRamp(float angle);
 
 public slots:
-     void setUiValues(double robotX,double robotY,double robotFi);
+     void setUiValues();
 signals:
-     void uiValuesChanged(double newrobotX,double newrobotY,double newrobotFi); ///toto nema telo
+     void uiValuesChanged(); ///toto nema telo
 
 
 };
