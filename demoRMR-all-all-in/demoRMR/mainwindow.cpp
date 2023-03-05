@@ -33,6 +33,8 @@ MainWindow::MainWindow(QWidget *parent) :
     pointsModel->push_back(Point{1, 0});
     pointsModel->push_back(Point{0.2, 0});
     pointsModel->push_back(Point{1.2, -0.2});
+    pointsModel->push_back(Point{0, 0});
+    pointsModel->push_back(Point{0, 3.5});
 
     datacounter=0;
 
@@ -341,7 +343,7 @@ void MainWindow::regulate(){
     Point destinationPoint = pointsModel->front();
 
     // Destination reached
-    if((abs(state.x - destinationPoint.x) < 0.01) && (abs(state.y - destinationPoint.y) < 0.01)){
+    if((abs(state.x - destinationPoint.x) < 0.1) && (abs(state.y - destinationPoint.y) < 0.1)){
         pointsModel->pop_front();
         cout << "point x: " << destinationPoint.x << " y: " << destinationPoint.y << " reached!!" << endl;
 
@@ -357,7 +359,9 @@ void MainWindow::regulate(){
     float dy = destinationPoint.y - state.y;
     float distance = std::sqrt(dx*dx + dy*dy);
     float angle = std::atan2(dy, dx) - state.angle;
-    angle = fmod(angle, 3.14159265358979*2);
+//    cout << "angle before:  " << angle << endl;
+    angle = fmod(angle + 3.14159265358979, 3.14159265358979*2) - 3.14159265358979;
+    cout << "angle after:  " << angle << endl;
 
     // Check if angle isnt too big
     if(abs(angle) > 0.785398){ // 45 degrees
@@ -415,12 +419,18 @@ void MainWindow::toogleRegulationButton(){
     if(ui->btnRegulation->text() == "StartRegulation"){
         ui->btnRegulation->setText("StopRegulation");
         regulating = true;
+
+        regulation_start_time = std::chrono::steady_clock::now();
         cout << "Starting regulation" << endl;
     }else{
         ui->btnRegulation->setText("StartRegulation");
         regulating = false;
         stopRobot();
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - regulation_start_time);
         cout << "StopingRegulation" << endl;
+        std::cout << "Time taken: " << duration.count() << " milliseconds" << std::endl;
     }
 }
 
@@ -447,22 +457,13 @@ void MainWindow::evaluateSaturation(){
     }
 }
 
-void MainWindow::evaluateAngleRamp(float angle){
+void MainWindow::evaluateAngleRamp(float targetangle){
 
-    double acceleration = angle * regulatorAngularProportionalElement - state.angularSpeed;
-    if(acceleration > rampAngularConstant){
-        state.angularSpeed += rampAngularConstant;
-    }else{
-        state.angularSpeed = angle * regulatorAngularProportionalElement;
-    }
+    float diff = targetangle * regulatorAngularProportionalElement - state.angularSpeed;
+    int dir = (diff > 0) ? 1 : -1;
 
-    // mozno zmazat/upravit, aby sa nepretacal by nepresnostiach
-//    if(acceleration < -rampAngularConstant){
-//        state.angularSpeed -= rampAngularConstant;
-//    }else{
-//        state.angularSpeed = angle * regulatorAngularProportionalElement;
-//    }
-    ////////////////////////////////////////////////////////////
+    float increment = rampAngularConstant < std::fabs(diff) ? rampAngularConstant : std::fabs(diff);
+    state.angularSpeed += dir * increment;
 }
 
 

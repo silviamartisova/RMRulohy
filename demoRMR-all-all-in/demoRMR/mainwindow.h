@@ -27,7 +27,7 @@
 #include "opencv2/imgcodecs.hpp"
 #include "robot.h"
 #include <QJoysticks.h>
-
+#include <chrono>
 #include <QAbstractTableModel>
 #include <list>
 
@@ -190,17 +190,18 @@ private:
      long double tickToMeter = 0.000085292090497737556558; // [m/tick]
      long double wheelbase = 0.23;
      const unsigned short ENCODER_MAX = 65535;  // define maximum encoder value
-     float regulatorTranslateProportionalElement = 1000;
+     float regulatorTranslateProportionalElement = 2000;
      float regulatorAngularProportionalElement = 3.141592*2;
      int rampTranslateConstant = 10; // mm/s
-     float rampAngularConstant = 0.1; // mm/s
-     int translateSaturationValue = 400;//mm/s;
-     float angularSaturationValue = 3.14159;//omega/s
+     float rampAngularConstant = 0.1; //omega/s
+     int translateSaturationValue = 350;//mm/s;
+     float angularSaturationValue = 3.14159/2;//omega/s
 
      long double oldEncoderLeft;
      long double oldEncoderRight;
      RobotState state = {0, 0, 0}; // starting at (0, 0)
      PointTableModel *pointsModel;
+     std::chrono::steady_clock::time_point regulation_start_time;
 
      bool regulating = false;
      float checkLineEdit(QLineEdit *lineEdit);
@@ -210,7 +211,7 @@ private:
      void regulate();
      void stopRobot();
      void evaluateSaturation();
-     void evaluateAngleRamp(float angle);
+     void evaluateAngleRamp(float targetangle);
 
 public slots:
      void setUiValues();

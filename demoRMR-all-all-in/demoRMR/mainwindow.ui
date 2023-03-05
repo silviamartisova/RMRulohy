@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>815</width>
-    <height>647</height>
+    <width>889</width>
+    <height>778</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -187,17 +187,17 @@
       </item>
       <item>
        <layout class="QGridLayout" name="gridLayout_4">
-        <item row="1" column="1">
-         <widget class="QLineEdit" name="leYpoint">
-          <property name="text">
-           <string>0</string>
-          </property>
-         </widget>
-        </item>
         <item row="0" column="0">
          <widget class="QLabel" name="label_6">
           <property name="text">
            <string>X:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_8">
+          <property name="text">
+           <string>Y:</string>
           </property>
          </widget>
         </item>
@@ -208,10 +208,10 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_8">
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="leYpoint">
           <property name="text">
-           <string>Y:</string>
+           <string>0</string>
           </property>
          </widget>
         </item>
@@ -223,19 +223,6 @@
          <string>AddPoint</string>
         </property>
        </widget>
-      </item>
-      <item>
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
       </item>
       <item>
        <layout class="QGridLayout" name="gridLayout_3">
@@ -387,7 +374,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>815</width>
+     <width>889</width>
      <height>26</height>
     </rect>
    </property>
