@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
 
     //tu je napevno nastavena ip. treba zmenit na to co ste si zadali do text boxu alebo nejaku inu pevnu. co bude spravna
-    ipaddress="127.0.0.1";//192.168.1.11toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
+    ipaddress="127.0.0.1";//192.168.1.14toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
   //  cap.open("http://192.168.1.11:8000/stream.mjpg");
     ui->setupUi(this);
     datacounter=0;
@@ -35,6 +35,8 @@ MainWindow::MainWindow(QWidget *parent) :
     pointsModel->push_back(Point{1.2, -0.2});
     pointsModel->push_back(Point{0, 0});
     pointsModel->push_back(Point{0, 3.5});
+//    pointsModel->push_back(Point{1, 0});
+
 
     datacounter=0;
 
@@ -64,7 +66,7 @@ void MainWindow::paintEvent(QPaintEvent *event)
     if(useCamera1==true && actIndex>-1)/// ak zobrazujem data z kamery a aspon niektory frame vo vectore je naplneny
     {
         std::cout<<actIndex<<std::endl;
-        QImage image = QImage((uchar*)frame[actIndex].data, frame[actIndex].cols, frame[actIndex].rows, frame[actIndex].step, QImage::Format_RGB888  );//kopirovanie cvmat do qimage
+        QImage image = QImage((uchar*)frame[actIndex].data, frame[actIndex].cols, frame[actIndex].rows, frame[actIndex].step, QImage::Format_RGB888);//kopirovanie cvmat do qimage
         painter.drawImage(rect,image.rgbSwapped());
     }
     else
@@ -189,7 +191,7 @@ void MainWindow::on_pushButton_9_clicked() //start button
     robot.setLaserParameters(ipaddress,52999,5299,/*[](LaserMeasurement dat)->int{std::cout<<"som z lambdy callback"<<std::endl;return 0;}*/std::bind(&MainWindow::processThisLidar,this,std::placeholders::_1));
     robot.setRobotParameters(ipaddress,53000,5300,std::bind(&MainWindow::processThisRobot,this,std::placeholders::_1));
     //---simulator ma port 8889, realny robot 8000
-    robot.setCameraParameters("http://"+ipaddress+":8889/stream.mjpg",std::bind(&MainWindow::processThisCamera,this,std::placeholders::_1));
+    robot.setCameraParameters("http://"+ipaddress+":8000/stream.mjpg",std::bind(&MainWindow::processThisCamera,this,std::placeholders::_1));
 
     ///ked je vsetko nasetovane tak to tento prikaz spusti (ak nieco nieje setnute,tak to normalne nenastavi.cize ak napr nechcete kameru,vklude vsetky info o nej vymazte)
     robot.robotStart();
@@ -301,20 +303,28 @@ void MainWindow::updateRobotState(long double encoderLeft, long double encoderRi
 
 //    // calculate the change in angle of the robot
     long double deltaAngle = (distanceRight - distanceLeft) / wheelbase;
-//    cout << " DeltaAngle: " << deltaAngle << endl;
 
-    // update the robot's position and orientation
-    state.x += distance * cos(state.angle + deltaAngle / 2);
-    state.y += distance * sin(state.angle + deltaAngle / 2);
-    state.angle += deltaAngle;
+    if(distanceRight == distanceLeft){
 
-//    // IBA PODLA PREDNASKY:
+    //    cout << " DeltaAngle: " << deltaAngle << endl;
 
-//    state.x += wheelbase*(distanceRight + distanceLeft)/(2*(distanceRight - distanceLeft))*(sin(state.angle+deltaAngle)-sin(state.angle));
-//    state.y -= wheelbase*(distanceRight + distanceLeft)/(2*(distanceRight - distanceLeft))*(cos(state.angle+deltaAngle)-cos(state.angle));
-//    state.angle += deltaAngle;
-//    //
-//    // handle the possibility of the robot moving backwards
+        // update the robot's position and orientation
+        state.x += distance * cos(state.angle + deltaAngle / 2);
+        state.y += distance * sin(state.angle + deltaAngle / 2);
+        state.angle += deltaAngle;
+
+    }
+    else{
+
+        state.x += ((wheelbase*(distanceRight + distanceLeft))/(2*(distanceRight - distanceLeft)))*(sin(state.angle+deltaAngle)-sin(state.angle));
+        state.y -= ((wheelbase*(distanceRight + distanceLeft))/(2*(distanceRight - distanceLeft)))*(cos(state.angle+deltaAngle)-cos(state.angle));
+        state.angle += deltaAngle;
+
+
+    }
+
+    //
+    // handle the possibility of the robot moving backwards
 //    if (distance < 0) {
 //        state.angle += 3.141592;
 //        state.x += distance * cos(state.angle + deltaAngle / 2);
@@ -343,7 +353,7 @@ void MainWindow::regulate(){
     Point destinationPoint = pointsModel->front();
 
     // Destination reached
-    if((abs(state.x - destinationPoint.x) < 0.1) && (abs(state.y - destinationPoint.y) < 0.1)){
+    if((abs(state.x - destinationPoint.x) < 0.01) && (abs(state.y - destinationPoint.y) < 0.01)){
         pointsModel->pop_front();
         cout << "point x: " << destinationPoint.x << " y: " << destinationPoint.y << " reached!!" << endl;
 
@@ -360,8 +370,9 @@ void MainWindow::regulate(){
     float distance = std::sqrt(dx*dx + dy*dy);
     float angle = std::atan2(dy, dx) - state.angle;
 //    cout << "angle before:  " << angle << endl;
+    // difference between -π and π.
     angle = fmod(angle + 3.14159265358979, 3.14159265358979*2) - 3.14159265358979;
-    cout << "angle after:  " << angle << endl;
+//    cout << "angle after:  " << angle << endl;
 
     // Check if angle isnt too big
     if(abs(angle) > 0.785398){ // 45 degrees
