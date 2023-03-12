@@ -37,6 +37,11 @@ struct Point {
     float y;
 };
 
+struct PointI {
+    int x;
+    int y;
+};
+
 class PointTableModel : public QAbstractTableModel
 {
 public:
@@ -117,7 +122,7 @@ private:
 
 
 struct RobotState {
-    double x; // position in meters
+    double  x; // position in meters
     double y; // position in meters
     double angle; // orientation in radians
     double forwardSpeed; //mm/s
@@ -183,6 +188,8 @@ private:
      Robot robot;
      TKobukiData robotdata;
      int datacounter;
+     int lidarDataCounter = 0;
+     int paintEventCounter = 0;
      QTimer *timer;
 
      QJoysticks *instance;
@@ -202,8 +209,9 @@ private:
      RobotState state = {0, 0, 0}; // starting at (0, 0)
      PointTableModel *pointsModel;
      std::chrono::steady_clock::time_point regulation_start_time;
-
+     int wall_edge_detect_frequenc = 2;
      bool regulating = false;
+     bool risingEdgeOfRegulating = false;
      float checkLineEdit(QLineEdit *lineEdit);
      void toogleRegulationButton();
 
@@ -212,6 +220,10 @@ private:
      void stopRobot();
      void evaluateSaturation();
      void evaluateAngleRamp(float targetangle);
+//     bool checkIfPointIsInRobotsWay(float x, float y, float x1, float y1, float x2, float y2);
+     bool checkIfPointIsInRobotsWay();
+
+     int robotZone = 30;
 
 public slots:
      void setUiValues();

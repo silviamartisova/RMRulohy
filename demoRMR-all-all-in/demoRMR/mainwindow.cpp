@@ -30,11 +30,11 @@ MainWindow::MainWindow(QWidget *parent) :
     pointsModel = new PointTableModel();
     ui->tbPoints->setModel(pointsModel);
 
-    pointsModel->push_back(Point{1, 0});
-    pointsModel->push_back(Point{0.2, 0});
-    pointsModel->push_back(Point{1.2, -0.2});
-    pointsModel->push_back(Point{0, 0});
-    pointsModel->push_back(Point{0, 3.5});
+//    pointsModel->push_back(Point{1, 0});
+//    pointsModel->push_back(Point{0.2, 0});
+//    pointsModel->push_back(Point{1.2, -0.2});
+//    pointsModel->push_back(Point{0, 0});
+//    pointsModel->push_back(Point{0, 3.5});
 //    pointsModel->push_back(Point{1, 0});
 
 
@@ -50,6 +50,8 @@ MainWindow::~MainWindow()
 
 void MainWindow::paintEvent(QPaintEvent *event)
 {
+    paintEventCounter++;
+
     QPainter painter(this);
     ///prekreslujem obrazovku len vtedy, ked viem ze mam nove data. paintevent sa
     /// moze pochopitelne zavolat aj z inych dovodov, napriklad zmena velkosti okna
@@ -62,6 +64,14 @@ void MainWindow::paintEvent(QPaintEvent *event)
     rect= ui->frame->geometry();//ziskate porametre stvorca,do ktoreho chcete kreslit
     rect.translate(0,15);
     painter.drawRect(rect);
+
+
+    std::vector<PointI> wall_endpoints;
+    PointI prev_point;
+    PointI cur_point;
+    PointI first_point;
+    float distance;
+
 
     if(useCamera1==true && actIndex>-1)/// ak zobrazujem data z kamery a aspon niektory frame vo vectore je naplneny
     {
@@ -83,8 +93,45 @@ void MainWindow::paintEvent(QPaintEvent *event)
                 int dist=copyOfLaserData.Data[k].scanDistance/20; ///vzdialenost nahodne predelena 20 aby to nejako vyzeralo v okne.. zmen podla uvazenia
                 int xp=rect.width()-(rect.width()/2+dist*2*sin((360.0-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0))+rect.topLeft().x(); //prepocet do obrazovky
                 int yp=rect.height()-(rect.height()/2+dist*2*cos((360.0-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0))+rect.topLeft().y();//prepocet do obrazovky
+
                 if(rect.contains(xp,yp))//ak je bod vo vnutri nasho obdlznika tak iba vtedy budem chciet kreslit
+                {
+                    pero.setColor(Qt::green);
+                    painter.setPen(pero);
                     painter.drawEllipse(QPoint(xp, yp),2,2);
+                }
+
+                if(paintEventCounter % wall_edge_detect_frequenc == 0){
+                        if(k == 0)first_point = prev_point = PointI{xp, yp};
+
+                    cur_point = PointI{xp, yp};
+
+                    distance = sqrt(pow(cur_point.x - prev_point.x, 2) + pow(cur_point.y - prev_point.y, 2));
+//                    cout << "distance: " << distance << endl;
+                    if (distance > robotZone*2)
+                    {
+//                        cout << "edge found! " << paintEventCounter << endl;
+                        // Endpoint of an obstacle wall detected
+                        wall_endpoints.push_back(prev_point);
+                        wall_endpoints.push_back(cur_point);
+
+                        if(rect.contains(xp,yp))//ak je bod vo vnutri nasho obdlznika tak iba vtedy budem chciet kreslit
+                        {
+                            pero.setColor(Qt::red);
+                            painter.setPen(pero);
+                            painter.drawEllipse(QPoint(xp, yp),2,2);
+                        }
+                        if(rect.contains(prev_point.x,prev_point.y))//ak je bod vo vnutri nasho obdlznika tak iba vtedy budem chciet kreslit
+                        {
+                            pero.setColor(Qt::red);
+                            painter.setPen(pero);
+                            painter.drawEllipse(QPoint(prev_point.x, prev_point.y),2,2);
+                        }
+                    }
+
+                    prev_point = cur_point;
+
+                }
             }
         }
     }
@@ -156,11 +203,23 @@ int MainWindow::processThisLidar(LaserMeasurement laserData)
 
     memcpy( &copyOfLaserData,&laserData,sizeof(LaserMeasurement));
     //tu mozete robit s datami z lidaru.. napriklad najst prekazky, zapisat do mapy. naplanovat ako sa prekazke vyhnut.
-    // ale nic vypoctovo narocne - to iste vlakno ktore cita data z lidaru
+    // ale nic vypoctovo narocne - to iste vlakno ktore cita data z lidaru#
+
+    // Uloha 2
+    if(risingEdgeOfRegulating || (lidarDataCounter%20==0 && regulating)){
+        risingEdgeOfRegulating = false;
+        if(checkIfPointIsInRobotsWay()){
+            cout << "There is a barier on the way to point!" << endl;
+            pointsModel->pop_front();
+            toogleRegulationButton();
+
+        }
+    }
+
     updateLaserPicture=1;
     update();//tento prikaz prinuti prekreslit obrazovku.. zavola sa paintEvent funkcia
 
-
+    lidarDataCounter++;
     return 0;
 
 }
@@ -347,21 +406,20 @@ void MainWindow::on_pushButton_8_clicked()
 }
 
 void MainWindow::regulate(){
-
     cout << "forwarSpeed: " << state.forwardSpeed << " angular speed: " << state.angularSpeed << endl;
 
+    if(pointsModel->rowCount() == 0){
+        // There are no more points to go
+        toogleRegulationButton();
+        cout << "No points to go!" << endl;
+        return;
+    }
     Point destinationPoint = pointsModel->front();
 
     // Destination reached
     if((abs(state.x - destinationPoint.x) < 0.01) && (abs(state.y - destinationPoint.y) < 0.01)){
         pointsModel->pop_front();
         cout << "point x: " << destinationPoint.x << " y: " << destinationPoint.y << " reached!!" << endl;
-
-        // There are no more points to go
-        if(pointsModel->rowCount() == 0){
-            toogleRegulationButton();
-        }
-        return;
     }
 
     // Calculate the distance and angle between the robot and the destination
@@ -430,6 +488,7 @@ void MainWindow::toogleRegulationButton(){
     if(ui->btnRegulation->text() == "StartRegulation"){
         ui->btnRegulation->setText("StopRegulation");
         regulating = true;
+        risingEdgeOfRegulating = true;
 
         regulation_start_time = std::chrono::steady_clock::now();
         cout << "Starting regulation" << endl;
@@ -482,4 +541,34 @@ void MainWindow::on_btnRegulation_clicked()
 {
     toogleRegulationButton();
 }
+
+bool MainWindow::checkIfPointIsInRobotsWay(){
+
+    Point destinationPoint = pointsModel->front();
+    float dx = destinationPoint.x - state.x;
+    float dy = destinationPoint.y - state.y;
+    float distance = std::sqrt(dx*dx + dy*dy);
+    float angle = std::atan2(dy, dx) - state.angle;
+
+    cout << angle << endl << endl;
+
+    for(int k=0;k<copyOfLaserData.numberOfScans/*360*/;k++)
+    {
+        float checkingAngle = ((360.0-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0)-angle;
+//        cout << angle << " < " << state.angle << endl;
+        if(abs(checkingAngle - state.angle) > 3.14159265358979/2)continue;
+        float b = (copyOfLaserData.Data[k].scanDistance/10)*sin(checkingAngle);
+        cout << "b: " << b << " checking angle: " << checkingAngle << endl;
+        if(abs(b) < robotZone/2){
+            cout << "distance: " << copyOfLaserData.Data[k].scanDistance << " < " << distance*1000 << endl;
+            if(copyOfLaserData.Data[k].scanDistance < distance*1000){
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
+
 
