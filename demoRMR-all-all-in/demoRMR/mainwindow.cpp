@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
 
     //tu je napevno nastavena ip. treba zmenit na to co ste si zadali do text boxu alebo nejaku inu pevnu. co bude spravna
-    ipaddress="127.0.0.1";//192.168.1.14toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
+    ipaddress="192.168.1.14";//192.168.1.14toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
   //  cap.open("http://192.168.1.11:8000/stream.mjpg");
     ui->setupUi(this);
     datacounter=0;
@@ -65,13 +65,13 @@ void MainWindow::paintEvent(QPaintEvent *event)
     rect.translate(0,15);
     painter.drawRect(rect);
 
-
+/* U2
     std::vector<PointI> wall_endpoints;
     PointI prev_point;
     PointI cur_point;
     PointI first_point;
     float distance;
-
+*/
 
     if(useCamera1==true && actIndex>-1)/// ak zobrazujem data z kamery a aspon niektory frame vo vectore je naplneny
     {
@@ -99,9 +99,10 @@ void MainWindow::paintEvent(QPaintEvent *event)
                     pero.setColor(Qt::green);
                     painter.setPen(pero);
                     painter.drawEllipse(QPoint(xp, yp),2,2);
-                }
+                }               
 
-                if(paintEventCounter % wall_edge_detect_frequenc == 0){
+                /* U2
+                if((paintEventCounter % wall_edge_detect_frequenc == 0) || risingEdgeOfRegulating){
                         if(k == 0)first_point = prev_point = PointI{xp, yp};
 
                     cur_point = PointI{xp, yp};
@@ -131,8 +132,57 @@ void MainWindow::paintEvent(QPaintEvent *event)
 
                     prev_point = cur_point;
 
-                }
+                }*/
+
             }
+/* U2
+            if(((paintEventCounter % wall_edge_detect_frequenc == 0) || risingEdgeOfRegulating) && pointsModel->rowCount()>0){
+                risingEdgeOfRegulating = false;
+
+                Point destPoint = pointsModel->front();
+                // Translate point to be relative to robot's position
+                double rel_point_x = destPoint.x-state.x;
+                double rel_point_y = destPoint.y-state.y;
+
+                /////////////////////
+                float dx = destPoint.x - state.x;
+                float dy = destPoint.y - state.y;
+                cout << "dx: " << dx << " dy: " << dy << endl;
+                float angle_between_point_and_robots_view = std::atan2(dy, dx) - state.angle;
+//                angle_between_point_and_robots_view = fmod(3.14159265358979*2 -angle_between_point_and_robots_view + 3.14159265358979, 3.14159265358979*2) - 3.14159265358979;
+
+                cout << angle_between_point_and_robots_view*180/3.14159265358979 << endl;
+
+
+                // Apply 2D rotation to point
+                double cos_theta = cos(state.angle+angle_between_point_and_robots_view);
+                double sin_theta = sin(state.angle+angle_between_point_and_robots_view);
+                double rot_point_x = cos_theta * rel_point_x - sin_theta * rel_point_y;
+                double rot_point_y = sin_theta * rel_point_x + cos_theta * rel_point_y;
+                // Translate point back to absolute position
+                double new_point_x = rot_point_x;
+                double new_point_y = rot_point_y;
+//                // Translate point back to absolute position
+//                double new_point_x = state.x + rot_point_x;
+//                double new_point_y = state.y + rot_point_y;
+
+                new_point_x *= 100;
+                new_point_y *= 100;
+                new_point_x += rect.topLeft().x() + rect.width()/2;
+                new_point_y += rect.topLeft().y() + rect.height()/2;
+//                new_point_x += - state.x*50 + rect.topLeft().x() + rect.width()/2;
+//                new_point_y += - state.y*50 + rect.topLeft().y() + rect.height()/2;
+
+                cout << "x: " << new_point_x<< " y: " << new_point_y<< endl;
+                pero.setColor(Qt::magenta);
+                painter.setPen(pero);
+                painter.drawEllipse(QPoint(new_point_x, new_point_y),2,2);
+
+            }
+*/
+            pero.setColor(Qt::white);
+            painter.setPen(pero);
+            painter.drawEllipse(QPoint(rect.topLeft().x()+rect.width()/2, rect.topLeft().y()+rect.height()/2),2,2);
         }
     }
 }
@@ -205,9 +255,8 @@ int MainWindow::processThisLidar(LaserMeasurement laserData)
     //tu mozete robit s datami z lidaru.. napriklad najst prekazky, zapisat do mapy. naplanovat ako sa prekazke vyhnut.
     // ale nic vypoctovo narocne - to iste vlakno ktore cita data z lidaru#
 
-    // Uloha 2
+/*    // Uloha 2
     if(risingEdgeOfRegulating || (lidarDataCounter%20==0 && regulating)){
-        risingEdgeOfRegulating = false;
         if(checkIfPointIsInRobotsWay()){
             cout << "There is a barier on the way to point!" << endl;
             pointsModel->pop_front();
@@ -215,6 +264,32 @@ int MainWindow::processThisLidar(LaserMeasurement laserData)
 
         }
     }
+*/
+
+    // U3
+    for(int k=0;k<copyOfLaserData.numberOfScans/*360*/;k++)
+    {
+        if(mapping && copyOfLaserData.Data[k].scanDistance > 130 && copyOfLaserData.Data[k].scanDistance < 3000 && !(copyOfLaserData.Data[k].scanDistance < 640 && copyOfLaserData.Data[k].scanDistance > 700)){
+            float x = state.x*1000 + copyOfLaserData.Data[k].scanDistance*cos(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
+            float y = state.y*1000 + copyOfLaserData.Data[k].scanDistance*sin(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
+
+            x /= gridSizeBlockInMM;
+            y /= gridSizeBlockInMM;
+
+            if (y >= map.size() || x >= map[0].size()) {
+                rows = fmax(y + 1, (int)map.size());
+                cols = fmax(x + 1, (int)map[0].size());
+                mapResize();
+            }
+
+            // Insert an obstacle at the scaled coordinates
+//            cout << "x: " << x << " y: " << y << " robotx: " << state.x << " roboty: " << state.y << " robot angle: " << state.angle <<  endl;
+
+            map[y][x] = 1;
+        }
+    }
+    save_map();
+//    printMap();
 
     updateLaserPicture=1;
     update();//tento prikaz prinuti prekreslit obrazovku.. zavola sa paintEvent funkcia
@@ -240,9 +315,30 @@ void MainWindow::on_pushButton_9_clicked() //start button
         return;
     }
 
+    mapResize();
+//    printMap();
+//    rows = 14;
+//    cols = 13;
+//    mapResize();
+//    printMap();
+//    map[12][11] = 5;
+//    rows = 18;
+//    cols = 14;
+//    mapResize();
+//    printMap();
+//    rows = 13;
+//    cols = 14;
+//    mapResize();
+//    printMap();
+//    map[8][11] = 9;
+//    printMap();
+//    return;
+
     state.forwardSpeed=0;
     state.angularSpeed=0;
-    //tu sa nastartuju vlakna ktore citaju data z lidaru a robota
+    state.x = 5;
+    state.y = 5;
+    // tu sa nastartuju vlakna ktore citaju data z lidaru a robota
     connect(this,SIGNAL(uiValuesChanged()),this,SLOT(setUiValues()));
 
     ///setovanie veci na komunikaciu s robotom/lidarom/kamerou.. su tam adresa porty a callback.. laser ma ze sa da dat callback aj ako lambda.
@@ -257,7 +353,7 @@ void MainWindow::on_pushButton_9_clicked() //start button
 
 
 
-    //ziskanie joystickov
+    // ziskanie joystickov
     instance = QJoysticks::getInstance();
 
 
@@ -269,6 +365,10 @@ void MainWindow::on_pushButton_9_clicked() //start button
             if(/*js==0 &&*/ axis==0){state.angularSpeed=-value*(3.14159/2.0);}}
     );
 
+
+    // U3
+
+
     oldEncoderLeft = robotdata.EncoderLeft;
     oldEncoderRight = robotdata.EncoderRight;
     connected = true;
@@ -277,32 +377,34 @@ void MainWindow::on_pushButton_9_clicked() //start button
 void MainWindow::on_pushButton_2_clicked() //forward
 {
     //pohyb dopredu
-    robot.setTranslationSpeed(500);
+    mapping = true;
+    robot.setTranslationSpeed(300);
 
 }
 
 void MainWindow::on_pushButton_3_clicked() //back
 {
+    mapping = true;
     robot.setTranslationSpeed(-250);
-
 }
 
 void MainWindow::on_pushButton_6_clicked() //left
 {
-robot.setRotationSpeed(3.14159/2);
-
+    mapping = false;
+    robot.setRotationSpeed(3.14159/2);
 }
 
 void MainWindow::on_pushButton_5_clicked()//right
 {
-robot.setRotationSpeed(-3.14159/2);
-
+    mapping = false;
+    robot.setRotationSpeed(-3.14159/2);
 }
 
 void MainWindow::on_pushButton_4_clicked() //stop
 {
     stopRobot();
-
+    mapping = false;
+    printMap();
 }
 
 
@@ -401,11 +503,13 @@ void MainWindow::updateRobotState(long double encoderLeft, long double encoderRi
 void MainWindow::on_pushButton_8_clicked()
 {
     state.angle = 0;
-    state.x = 0;
-    state.y = 0;
+    state.x = 2;
+    state.y = 2;
+    mapping = true;
 }
 
 void MainWindow::regulate(){
+    return;
     cout << "forwarSpeed: " << state.forwardSpeed << " angular speed: " << state.angularSpeed << endl;
 
     if(pointsModel->rowCount() == 0){
@@ -570,5 +674,38 @@ bool MainWindow::checkIfPointIsInRobotsWay(){
 }
 
 
+void MainWindow::printMap(){
+    cout << endl << "MAP:" << endl;
+    for (int i = 0; i < map.size(); i++) {
+        for (int j = 0; j < map[i].size(); j++) {
+            cout << map[i][j] << " ";
+        }
+        cout << endl;
+    }
+}
 
+void MainWindow::save_map() {
+    ofstream outfile("mapa.txt", ios::trunc);
+
+    if (!outfile) {
+        cerr << "Error: Could not open file " << "mapa.txt" << endl;
+        return;
+    }
+
+    for (const auto& row : map) {
+        for (int val : row) {
+            outfile << val << " ";
+        }
+        outfile << endl;
+    }
+
+    outfile.close();
+}
+
+void MainWindow::mapResize(){
+   map.resize(rows);
+   for (auto& row : map) {
+       row.resize(cols, 0);  // initialize the new columns with zeros
+   }
+}
 

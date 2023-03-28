@@ -42,6 +42,22 @@ struct PointI {
     int y;
 };
 
+union TMapPoint {
+    Point point;
+    double suradnice[2];
+};
+
+struct TMapObject {
+    int numOfPoints;
+    std::vector<TMapPoint> points;
+};
+
+struct TMapArea {
+    TMapObject wall;
+    int numOfObjects;
+    std::vector<TMapObject> obstacle;
+};
+
 class PointTableModel : public QAbstractTableModel
 {
 public:
@@ -224,6 +240,17 @@ private:
      bool checkIfPointIsInRobotsWay();
 
      int robotZone = 30;
+
+     bool mapping = false;
+     int gridSizeBlockInMM = 100;
+     int rows = 10;
+     int cols  = 10;
+     vector<vector<int>> map;  // initialize with zeros
+
+     void printMap();
+     void save_map();
+     void mapResize();
+
 
 public slots:
      void setUiValues();
