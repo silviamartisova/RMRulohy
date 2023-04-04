@@ -30,7 +30,14 @@
 #include <chrono>
 #include <QAbstractTableModel>
 #include <list>
+#include <queue>
 
+enum Direction {
+    LEFT,
+    RIGHT,
+    UP,
+    DOWN
+};
 
 struct Point {
     float x;
@@ -40,6 +47,11 @@ struct Point {
 struct PointI {
     int x;
     int y;
+};
+
+struct Node {
+    int row, col, val;
+    Node(int r, int c, int v) : row(r), col(c), val(v) {}
 };
 
 union TMapPoint {
@@ -206,6 +218,7 @@ private:
      int datacounter;
      int lidarDataCounter = 0;
      int paintEventCounter = 0;
+     int floodfillCounter = 0;
      QTimer *timer;
 
      QJoysticks *instance;
@@ -250,6 +263,11 @@ private:
      void printMap();
      void save_map();
      void mapResize();
+     void loadMap();
+     void mainLogigOfU4();
+     void floodFill(vector<vector<int>>& map, int row, int col);
+     Direction checkDirection(int workingRow, int workingCollumn);
+     void expandWalls();
 
 
 public slots:

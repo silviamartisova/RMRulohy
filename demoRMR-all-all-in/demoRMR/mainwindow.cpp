@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
 
     //tu je napevno nastavena ip. treba zmenit na to co ste si zadali do text boxu alebo nejaku inu pevnu. co bude spravna
-    ipaddress="192.168.1.14";//192.168.1.14toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
+    ipaddress="127.0.0.1";//192.168.1.14toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
   //  cap.open("http://192.168.1.11:8000/stream.mjpg");
     ui->setupUi(this);
     datacounter=0;
@@ -266,30 +266,30 @@ int MainWindow::processThisLidar(LaserMeasurement laserData)
     }
 */
 
-    // U3
-    for(int k=0;k<copyOfLaserData.numberOfScans/*360*/;k++)
-    {
-        if(mapping && copyOfLaserData.Data[k].scanDistance > 130 && copyOfLaserData.Data[k].scanDistance < 3000 && !(copyOfLaserData.Data[k].scanDistance < 640 && copyOfLaserData.Data[k].scanDistance > 700)){
-            float x = state.x*1000 + copyOfLaserData.Data[k].scanDistance*cos(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
-            float y = state.y*1000 + copyOfLaserData.Data[k].scanDistance*sin(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
+//    // U3
+//    for(int k=0;k<copyOfLaserData.numberOfScans/*360*/;k++)
+//    {
+//        if(mapping && copyOfLaserData.Data[k].scanDistance > 130 && copyOfLaserData.Data[k].scanDistance < 3000 && !(copyOfLaserData.Data[k].scanDistance < 640 && copyOfLaserData.Data[k].scanDistance > 700)){
+//            float x = state.x + copyOfLaserData.Data[k].scanDistance*cos(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
+//            float y = state.y*1000 + copyOfLaserData.Data[k].scanDistance*sin(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
 
-            x /= gridSizeBlockInMM;
-            y /= gridSizeBlockInMM;
+//            x /= gridSizeBlockInMM;
+//            y /= gridSizeBlockInMM;
 
-            if (y >= map.size() || x >= map[0].size()) {
-                rows = fmax(y + 1, (int)map.size());
-                cols = fmax(x + 1, (int)map[0].size());
-                mapResize();
-            }
+//            if (y >= map.size() || x >= map[0].size()) {
+//                rows = fmax(y + 1, (int)map.size());
+//                cols = fmax(x + 1, (int)map[0].size());
+//                mapResize();
+//            }
 
-            // Insert an obstacle at the scaled coordinates
-//            cout << "x: " << x << " y: " << y << " robotx: " << state.x << " roboty: " << state.y << " robot angle: " << state.angle <<  endl;
+//            // Insert an obstacle at the scaled coordinates
+////            cout << "x: " << x << " y: " << y << " robotx: " << state.x << " roboty: " << state.y << " robot angle: " << state.angle <<  endl;
 
-            map[y][x] = 1;
-        }
-    }
-    save_map();
-//    printMap();
+//            map[y][x] = 1;
+//        }
+//    }
+//    save_map();
+////    printMap();
 
     updateLaserPicture=1;
     update();//tento prikaz prinuti prekreslit obrazovku.. zavola sa paintEvent funkcia
@@ -315,7 +315,22 @@ void MainWindow::on_pushButton_9_clicked() //start button
         return;
     }
 
-    mapResize();
+    state.forwardSpeed=0;
+    state.angularSpeed=0;
+    state.x = 0.5;
+    state.y = 0.5;
+
+    //U4
+    loadMap();
+    printMap();
+    expandWalls();
+    printMap();
+    mainLogigOfU4();
+    printMap();
+
+
+
+//    mapResize();
 //    printMap();
 //    rows = 14;
 //    cols = 13;
@@ -334,10 +349,7 @@ void MainWindow::on_pushButton_9_clicked() //start button
 //    printMap();
 //    return;
 
-    state.forwardSpeed=0;
-    state.angularSpeed=0;
-    state.x = 5;
-    state.y = 5;
+
     // tu sa nastartuju vlakna ktore citaju data z lidaru a robota
     connect(this,SIGNAL(uiValuesChanged()),this,SLOT(setUiValues()));
 
@@ -346,7 +358,7 @@ void MainWindow::on_pushButton_9_clicked() //start button
     robot.setLaserParameters(ipaddress,52999,5299,/*[](LaserMeasurement dat)->int{std::cout<<"som z lambdy callback"<<std::endl;return 0;}*/std::bind(&MainWindow::processThisLidar,this,std::placeholders::_1));
     robot.setRobotParameters(ipaddress,53000,5300,std::bind(&MainWindow::processThisRobot,this,std::placeholders::_1));
     //---simulator ma port 8889, realny robot 8000
-    robot.setCameraParameters("http://"+ipaddress+":8000/stream.mjpg",std::bind(&MainWindow::processThisCamera,this,std::placeholders::_1));
+    robot.setCameraParameters("http://"+ipaddress+":8889/stream.mjpg",std::bind(&MainWindow::processThisCamera,this,std::placeholders::_1));
 
     ///ked je vsetko nasetovane tak to tento prikaz spusti (ak nieco nieje setnute,tak to normalne nenastavi.cize ak napr nechcete kameru,vklude vsetky info o nej vymazte)
     robot.robotStart();
@@ -365,8 +377,6 @@ void MainWindow::on_pushButton_9_clicked() //start button
             if(/*js==0 &&*/ axis==0){state.angularSpeed=-value*(3.14159/2.0);}}
     );
 
-
-    // U3
 
 
     oldEncoderLeft = robotdata.EncoderLeft;
@@ -503,13 +513,13 @@ void MainWindow::updateRobotState(long double encoderLeft, long double encoderRi
 void MainWindow::on_pushButton_8_clicked()
 {
     state.angle = 0;
-    state.x = 2;
-    state.y = 2;
+    state.x = 0.5;
+    state.y = 0.5;
     mapping = true;
 }
 
 void MainWindow::regulate(){
-    return;
+//    return;
     cout << "forwarSpeed: " << state.forwardSpeed << " angular speed: " << state.angularSpeed << endl;
 
     if(pointsModel->rowCount() == 0){
@@ -707,5 +717,222 @@ void MainWindow::mapResize(){
    for (auto& row : map) {
        row.resize(cols, 0);  // initialize the new columns with zeros
    }
+}
+
+void MainWindow::loadMap(){
+
+    ifstream file("mapa.txt");
+
+    if (file.is_open()) {
+        string line;
+        while (getline(file, line)) {
+            vector<int> row;
+            for (char c : line) {
+                if (c == '0') {
+                    row.push_back(0);
+                } else if (c == '1') {
+                    row.push_back(1);
+                }
+            }
+            map.push_back(row);
+        }
+        file.close();
+    } else {
+        cout << "Unable to open file";
+        return;
+    }
+}
+
+void MainWindow::mainLogigOfU4(){
+
+    // Set -1 to tile where robot is located
+    int row = state.y*1000 / gridSizeBlockInMM;
+    int col = state.x*1000 / gridSizeBlockInMM;
+    map[row][col] = -1;
+
+    // Set a random destination
+        srand(time(NULL));
+        int rand_row = rand() % map.size();
+        int rand_col = rand() % map[0].size();
+
+        while (map[rand_row][rand_col] != 0) {
+            rand_row = rand() % map.size();
+            rand_col = rand() % map[0].size();
+        }
+
+        map[rand_row][rand_col] = 2;
+
+//    map[10][10] = 2;
+
+    printMap();
+    // Run flood fill from the destination to the robot
+    floodFill(map, rand_row, rand_col);
+
+    printMap();
+
+
+    Direction direction;
+    int oldValue = 999;
+    while(true){
+
+        direction = checkDirection(row, col);
+
+        while(true){
+            switch (direction){
+            case LEFT:
+                col--;
+                break;
+            case RIGHT:
+                col++;
+                break;
+            case UP:
+                row--;
+                break;
+            case DOWN:
+                row++;
+                break;
+            }
+            if(map[row][col] < oldValue && map[row][col] != 1 && map[row][col] != 0){
+                oldValue = map[row][col];
+                cout << oldValue << endl;
+            }else break;
+        }
+
+        switch (direction){
+        case LEFT:
+            col++;
+            break;
+        case RIGHT:
+            col--;
+            break;
+        case UP:
+            row++;
+            break;
+        case DOWN:
+            row--;
+            break;
+        }
+
+        pointsModel->push_back(Point{col*gridSizeBlockInMM/1000.0f, row*gridSizeBlockInMM/1000.0f});
+
+
+        if(oldValue == 2){
+            break;
+        }
+    }
+}
+
+void MainWindow::floodFill(vector<vector<int>>& map, int row, int col) {
+
+    int val = 2;
+    queue<Node> q;
+    q.push(Node(row, col, val));
+
+    while (!q.empty()) {
+        Node node = q.front();
+        q.pop();
+
+        row = node.row;
+        col = node.col;
+        val = node.val;
+
+        if (row < 0 || row >= map.size() || col < 0 || col >= map[0].size()) {
+            continue;
+        }
+
+        if (map[row][col] == -1) {
+            break;
+        }
+
+        if (map[row][col] != 0 && map[row][col] != 2) {
+            continue;
+        }
+        if (map[row][col] != 2) {
+            map[row][col] = val;
+        }
+//        cout << "inserting to: " << row  << " " << col << " with value: " << val << endl;
+        q.push(Node(row-1, col, val+1));
+        q.push(Node(row+1, col, val+1));
+        q.push(Node(row, col-1, val+1));
+        q.push(Node(row, col+1, val+1));
+    }
+}
+
+Direction MainWindow::checkDirection(int workingRow, int workingCollumn){
+
+    bool left = true;
+    bool right = true;
+    bool up = true;
+    bool down = true;
+
+    int leftValue = map[workingRow][workingCollumn-1];
+    int rightValue = map[workingRow][workingCollumn+1];
+    int upValue = map[workingRow-1][workingCollumn];
+    int downValue = map[workingRow+1][workingCollumn];
+
+    if(downValue == 1 || downValue == 0 || downValue == -1)down = false;
+    if(upValue == 1 || upValue == 0 || upValue == -1)up = false;
+    if(rightValue == 1 || rightValue == 0 || rightValue == -1)right = false;
+    if(leftValue == 1 || leftValue == 0 || leftValue == -1)left = false;
+
+    int smallest;
+    if(left)smallest = leftValue;
+    else if(right)smallest = rightValue;
+    else if(up)smallest = upValue;
+    else smallest = downValue;
+
+    if (right && rightValue < smallest) {
+        smallest = rightValue;
+    }
+    if (up && upValue < smallest) {
+        smallest = upValue;
+    }
+    if (down && downValue < smallest) {
+        smallest = downValue;
+    }
+
+    if (smallest == leftValue) {
+        return LEFT;
+    } else if (smallest == rightValue) {
+        return RIGHT;
+    } else if (smallest == upValue) {
+        return UP;
+    } else {
+        return DOWN;
+    }
+}
+
+void MainWindow::expandWalls(){
+    // Define the expansion factor
+    int expansionFactor = 3;
+
+    // Create a new 2D vector to store the expanded map
+    vector<vector<int>> expandedMap(map.size(), vector<int>(map[0].size(), 0));
+
+    // Iterate over all cells in the map
+    for (int i = 0; i < map.size(); i++) {
+        for (int j = 0; j < map[0].size(); j++) {
+            // Check if the cell represents a wall
+            if (map[i][j] == 1) {
+                // Replace the wall cell with a larger block of wall cells
+                for (int k = i-expansionFactor; k <= i+expansionFactor; k++) {
+                    for (int l = j-expansionFactor; l <= j+expansionFactor; l++) {
+                        // Check if the cell is within the bounds of the map
+                        if (k >= 0 && k < map.size() && l >= 0 && l < map[0].size()) {
+                            // Replace the cell with a wall
+                            expandedMap[k][l] = 1;
+                        }
+                    }
+                }
+            } else {
+                // Copy the cell from the original map
+                expandedMap[i][j] = map[i][j];
+            }
+        }
+    }
+
+    // Use the expanded map for further processing
+    map = expandedMap;
+
 }
 
