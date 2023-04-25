@@ -30,7 +30,7 @@ MainWindow::MainWindow(QWidget *parent) :
     pointsModel = new PointTableModel();
     ui->tbPoints->setModel(pointsModel);
 
-//    pointsModel->push_back(Point{1, 0});
+//    pointsModel->push_back(Point{1, 1});
 //    pointsModel->push_back(Point{0.2, 0});
 //    pointsModel->push_back(Point{1.2, -0.2});
 //    pointsModel->push_back(Point{0, 0});
@@ -65,13 +65,14 @@ void MainWindow::paintEvent(QPaintEvent *event)
     rect.translate(0,15);
     painter.drawRect(rect);
 
-/* U2
+//u2
     std::vector<PointI> wall_endpoints;
+    std::vector<PointI> segments;
     PointI prev_point;
     PointI cur_point;
     PointI first_point;
     float distance;
-*/
+
 
     if(useCamera1==true && actIndex>-1)/// ak zobrazujem data z kamery a aspon niektory frame vo vectore je naplneny
     {
@@ -97,89 +98,95 @@ void MainWindow::paintEvent(QPaintEvent *event)
                 if(rect.contains(xp,yp))//ak je bod vo vnutri nasho obdlznika tak iba vtedy budem chciet kreslit
                 {
                     pero.setColor(Qt::green);
+                    if(k == 0)pero.setColor(Qt::yellow);
+                    if(k == 1)pero.setColor(Qt::red);
+                    if(k == upEdgeIndex)pero.setColor(Qt::magenta);
+                    if(k == lowEdgeIndex)pero.setColor(Qt::cyan);
+                    if(k == indexOfBlockingPoint)pero.setColor(Qt::white);
                     painter.setPen(pero);
                     painter.drawEllipse(QPoint(xp, yp),2,2);
                 }               
 
-                /* U2
-                if((paintEventCounter % wall_edge_detect_frequenc == 0) || risingEdgeOfRegulating){
-                        if(k == 0)first_point = prev_point = PointI{xp, yp};
+                // U2
 
-                    cur_point = PointI{xp, yp};
+//                if((paintEventCounter % wall_edge_detect_frequenc == 0) || risingEdgeOfRegulating){
+//                        if(k == 0)first_point = prev_point = PointI{xp, yp};
 
-                    distance = sqrt(pow(cur_point.x - prev_point.x, 2) + pow(cur_point.y - prev_point.y, 2));
-//                    cout << "distance: " << distance << endl;
-                    if (distance > robotZone*2)
-                    {
-//                        cout << "edge found! " << paintEventCounter << endl;
-                        // Endpoint of an obstacle wall detected
-                        wall_endpoints.push_back(prev_point);
-                        wall_endpoints.push_back(cur_point);
+//                    cur_point = PointI{xp, yp};
 
-                        if(rect.contains(xp,yp))//ak je bod vo vnutri nasho obdlznika tak iba vtedy budem chciet kreslit
-                        {
-                            pero.setColor(Qt::red);
-                            painter.setPen(pero);
-                            painter.drawEllipse(QPoint(xp, yp),2,2);
-                        }
-                        if(rect.contains(prev_point.x,prev_point.y))//ak je bod vo vnutri nasho obdlznika tak iba vtedy budem chciet kreslit
-                        {
-                            pero.setColor(Qt::red);
-                            painter.setPen(pero);
-                            painter.drawEllipse(QPoint(prev_point.x, prev_point.y),2,2);
-                        }
-                    }
+//                    distance = sqrt(pow(cur_point.x - prev_point.x, 2) + pow(cur_point.y - prev_point.y, 2));
+////                    cout << "distance: " << distance << endl;
+//                    if (distance > robotZone*2)
+//                    {
+////                        cout << "edge found! " << paintEventCounter << endl;
+//                        // Endpoint of an obstacle wall detected
+//                        wall_endpoints.push_back(prev_point);
+//                        wall_endpoints.push_back(cur_point);
+//                        cout << "PAINTEVENT: " << k << endl;
 
-                    prev_point = cur_point;
+//                        if(rect.contains(xp,yp))//ak je bod vo vnutri nasho obdlznika tak iba vtedy budem chciet kreslit
+//                        {
+//                            pero.setColor(Qt::red);
+//                            painter.setPen(pero);
+//                            painter.drawEllipse(QPoint(xp, yp),2,2);
+//                        }
+//                        if(rect.contains(prev_point.x,prev_point.y))//ak je bod vo vnutri nasho obdlznika tak iba vtedy budem chciet kreslit
+//                        {
+//                            pero.setColor(Qt::red);
+//                            painter.setPen(pero);
+//                            painter.drawEllipse(QPoint(prev_point.x, prev_point.y),2,2);
+//                        }
+//                    }
 
-                }*/
+//                    prev_point = cur_point;
+
+//                }
 
             }
-/* U2
-            if(((paintEventCounter % wall_edge_detect_frequenc == 0) || risingEdgeOfRegulating) && pointsModel->rowCount()>0){
-                risingEdgeOfRegulating = false;
+// U2
+//            if(((paintEventCounter % wall_edge_detect_frequenc == 0) || risingEdgeOfRegulating) && pointsModel->rowCount()>0){
 
-                Point destPoint = pointsModel->front();
-                // Translate point to be relative to robot's position
-                double rel_point_x = destPoint.x-state.x;
-                double rel_point_y = destPoint.y-state.y;
+//                Point destPoint = pointsModel->front();
+//                // Translate point to be relative to robot's position
+//                double rel_point_x = destPoint.x-state.x;
+//                double rel_point_y = destPoint.y-state.y;
 
-                /////////////////////
-                float dx = destPoint.x - state.x;
-                float dy = destPoint.y - state.y;
-                cout << "dx: " << dx << " dy: " << dy << endl;
-                float angle_between_point_and_robots_view = std::atan2(dy, dx) - state.angle;
-//                angle_between_point_and_robots_view = fmod(3.14159265358979*2 -angle_between_point_and_robots_view + 3.14159265358979, 3.14159265358979*2) - 3.14159265358979;
+//                /////////////////////
+//                float dx = destPoint.x - state.x;
+//                float dy = destPoint.y - state.y;
+//                cout << "dx: " << dx << " dy: " << dy << endl;
+//                float angle_between_point_and_robots_view = std::atan2(dy, dx) - state.angle;
+////                angle_between_point_and_robots_view = fmod(3.14159265358979*2 -angle_between_point_and_robots_view + 3.14159265358979, 3.14159265358979*2) - 3.14159265358979;
 
-                cout << angle_between_point_and_robots_view*180/3.14159265358979 << endl;
+//                cout << angle_between_point_and_robots_view*180/3.14159265358979 << endl;
 
 
-                // Apply 2D rotation to point
-                double cos_theta = cos(state.angle+angle_between_point_and_robots_view);
-                double sin_theta = sin(state.angle+angle_between_point_and_robots_view);
-                double rot_point_x = cos_theta * rel_point_x - sin_theta * rel_point_y;
-                double rot_point_y = sin_theta * rel_point_x + cos_theta * rel_point_y;
-                // Translate point back to absolute position
-                double new_point_x = rot_point_x;
-                double new_point_y = rot_point_y;
+//                // Apply 2D rotation to point
+//                double cos_theta = cos(state.angle+angle_between_point_and_robots_view);
+//                double sin_theta = sin(state.angle+angle_between_point_and_robots_view);
+//                double rot_point_x = cos_theta * rel_point_x - sin_theta * rel_point_y;
+//                double rot_point_y = sin_theta * rel_point_x + cos_theta * rel_point_y;
 //                // Translate point back to absolute position
-//                double new_point_x = state.x + rot_point_x;
-//                double new_point_y = state.y + rot_point_y;
+//                double new_point_x = rot_point_x;
+//                double new_point_y = rot_point_y;
+////                // Translate point back to absolute position
+////                double new_point_x = state.x + rot_point_x;
+////                double new_point_y = state.y + rot_point_y;
 
-                new_point_x *= 100;
-                new_point_y *= 100;
-                new_point_x += rect.topLeft().x() + rect.width()/2;
-                new_point_y += rect.topLeft().y() + rect.height()/2;
-//                new_point_x += - state.x*50 + rect.topLeft().x() + rect.width()/2;
-//                new_point_y += - state.y*50 + rect.topLeft().y() + rect.height()/2;
+//                new_point_x *= 100;
+//                new_point_y *= 100;
+//                new_point_x += rect.topLeft().x() + rect.width()/2;
+//                new_point_y += rect.topLeft().y() + rect.height()/2;
+////                new_point_x += - state.x*50 + rect.topLeft().x() + rect.width()/2;
+////                new_point_y += - state.y*50 + rect.topLeft().y() + rect.height()/2;
 
-                cout << "x: " << new_point_x<< " y: " << new_point_y<< endl;
-                pero.setColor(Qt::magenta);
-                painter.setPen(pero);
-                painter.drawEllipse(QPoint(new_point_x, new_point_y),2,2);
+//                cout << "x: " << new_point_x<< " y: " << new_point_y<< endl;
+//                pero.setColor(Qt::magenta);
+//                painter.setPen(pero);
+//                painter.drawEllipse(QPoint(new_point_x, new_point_y),2,2);
 
-            }
-*/
+//            }
+
             pero.setColor(Qt::white);
             painter.setPen(pero);
             painter.drawEllipse(QPoint(rect.topLeft().x()+rect.width()/2, rect.topLeft().y()+rect.height()/2),2,2);
@@ -245,8 +252,129 @@ int MainWindow::processThisRobot(TKobukiData robotdata)
 
 }
 
-///toto je calback na data z lidaru, ktory ste podhodili robotu vo funkcii on_pushButton_9_clicked
-/// vola sa ked dojdu nove data z lidaru
+float MainWindow::getPointsDistance(Point a, Point b){
+    return sqrtf(powf(a.x - b.x, 2) + powf(a.y - b.y, 2));
+}
+
+void MainWindow::findNearestGap(){
+    Point prev_point;
+    Point cur_point;
+    Point first_point;
+    float distance;
+    Point upPoint;
+    Point lowPoint;
+
+    cout << "k is: " << indexOfBlockingPoint << endl;
+    for(int k = indexOfBlockingPoint, i = indexOfBlockingPoint; k<indexOfBlockingPoint+copyOfLaserData.numberOfScans/*360*/; k++, i++){
+        i = k % copyOfLaserData.numberOfScans;
+        float x = state.x + copyOfLaserData.Data[i].scanDistance/1000*cos(state.angle+(360-copyOfLaserData.Data[i].scanAngle)*3.14159/180.0);
+        float y = state.y + copyOfLaserData.Data[i].scanDistance/1000*sin(state.angle+(360-copyOfLaserData.Data[i].scanAngle)*3.14159/180.0);
+
+
+        if(k == indexOfBlockingPoint)first_point = prev_point = Point{x, y};
+        cur_point = Point{x, y};
+        distance = getPointsDistance(cur_point, prev_point);
+        if (distance > robotZone/100.0*2)// /100 is to change cm to m
+        {
+            cout << "up edge found! " << i << endl;
+            upPoint = prev_point;
+            break;
+        }
+        prev_point = cur_point;
+        upEdgeIndex = i;
+
+//        cout << "i: " << i << endl;
+    }
+
+    for(int k = indexOfBlockingPoint, i = indexOfBlockingPoint; k>=-copyOfLaserData.numberOfScans+indexOfBlockingPoint; k--, i--){
+        if(i < 0) i += copyOfLaserData.numberOfScans-1;
+        float x = state.x + copyOfLaserData.Data[i].scanDistance/1000*cos(state.angle+(360-copyOfLaserData.Data[i].scanAngle)*3.14159/180.0);
+        float y = state.y + copyOfLaserData.Data[i].scanDistance/1000*sin(state.angle+(360-copyOfLaserData.Data[i].scanAngle)*3.14159/180.0);
+
+
+        if(k == indexOfBlockingPoint)first_point = prev_point = Point{x, y};
+        cur_point = Point{x, y};
+        distance = getPointsDistance(cur_point, prev_point);
+        if (distance > robotZone/100.0*2)// /10 is to change cm to m
+        {
+            cout << "low edge found! " << i << endl;
+            lowPoint = prev_point;
+            break;
+        }
+        prev_point = cur_point;
+        lowEdgeIndex = i;
+//        cout << "i: " << i << endl;
+    }
+
+    // Zratenie potencialnej dlzky
+    if((getPointsDistance(upPoint, Point{(float)state.x, (float)state.y}) + getPointsDistance(upPoint, pointsModel->front())) > (getPointsDistance(lowPoint, Point{(float)state.x, (float)state.y}) + getPointsDistance(lowPoint, pointsModel->front()))){
+
+        // skusme spravit posun do jednej a do druhej strany oproti najdenemu bodu, novy bod by mal mat:
+        // uvazujme posun o dlzku "r", potom distance noveho bodu by mal byt sqrt(distancaStary^2 + r^2)
+        // angle noveho bodu by potom mal byt angleStarehoBodu + atan2(r, distance)
+        float oldDistance = copyOfLaserData.Data[lowEdgeIndex].scanDistance/1000;
+        float r = robotZone/100.0/1.2;
+        float newDistance = sqrtf(oldDistance*oldDistance + r*r);
+        float newAngle = (360-copyOfLaserData.Data[lowEdgeIndex].scanAngle)*3.14159/180.0 + atan2(r, oldDistance);
+        newDistance*=1.2;
+//        newAngle*=1.05;
+        float x = state.x + newDistance*cos(state.angle+newAngle);
+        float y = state.y + newDistance*sin(state.angle+newAngle);
+        bool free = checkIfPointIsInRobotsWay(Point{x,y});
+        risingEdgeOfRegulating = true;
+        if(risingEdgeOfRegulating){
+            pointsModel->push_front(Point{x,y});
+            cout << "inserting low point. X: " << x << " Y: " << y << endl;
+        }
+        else{
+            float oldDistance = copyOfLaserData.Data[lowEdgeIndex].scanDistance/1000;
+            float r = -robotZone/100.0/1.2;
+            float newDistance = sqrtf(oldDistance*oldDistance + r*r);
+            float newAngle = (360-copyOfLaserData.Data[lowEdgeIndex].scanAngle)*3.14159/180.0 + atan2(r, oldDistance);
+            newDistance*=1.2;
+    //        newAngle*=1.05;
+            float x = state.x + newDistance*cos(state.angle+newAngle);
+            float y = state.y + newDistance*sin(state.angle+newAngle);
+            bool free = checkIfPointIsInRobotsWay(Point{x,y});
+            risingEdgeOfRegulating = true;
+            if(!free){
+                pointsModel->push_front(Point{x,y});
+                cout << "iinserting low point. X: " << x << " Y: " << y << endl;
+            }
+        }
+
+    }else{
+
+        float oldDistance = copyOfLaserData.Data[upEdgeIndex].scanDistance/1000;
+        float r = robotZone/100.0/1.2;
+        float newDistance = sqrtf(oldDistance*oldDistance + r*r);
+        float newAngle = (360-copyOfLaserData.Data[upEdgeIndex].scanAngle)*3.14159/180.0 + atan2(r, oldDistance);
+        newDistance*=1.2;
+        float x = state.x + newDistance*cos(state.angle+newAngle);
+        float y = state.y + newDistance*sin(state.angle+newAngle);
+        bool free = checkIfPointIsInRobotsWay(Point{x,y});
+        risingEdgeOfRegulating = true;
+        if(!free){
+            pointsModel->push_front(Point{x,y});
+            cout << "inserting up point. X: " << x << " Y: " << y << endl;
+        }else {
+            float oldDistance = copyOfLaserData.Data[upEdgeIndex].scanDistance/1000;
+            float r = -robotZone/100.0/1.2;
+            float newDistance = sqrtf(oldDistance*oldDistance + r*r);
+            float newAngle = (360-copyOfLaserData.Data[upEdgeIndex].scanAngle)*3.14159/180.0 + atan2(r, oldDistance);
+            newDistance*=1.2;
+            float x = state.x + newDistance*cos(state.angle+newAngle);
+            float y = state.y + newDistance*sin(state.angle+newAngle);
+            bool free = checkIfPointIsInRobotsWay(Point{x,y});
+            risingEdgeOfRegulating = true;
+            if(!free){
+                pointsModel->push_front(Point{x,y});
+                cout << "iinserting up point. X: " << x << " Y: " << y << endl;
+            }
+        }
+    }
+}
+
 int MainWindow::processThisLidar(LaserMeasurement laserData)
 {
 
@@ -255,22 +383,26 @@ int MainWindow::processThisLidar(LaserMeasurement laserData)
     //tu mozete robit s datami z lidaru.. napriklad najst prekazky, zapisat do mapy. naplanovat ako sa prekazke vyhnut.
     // ale nic vypoctovo narocne - to iste vlakno ktore cita data z lidaru#
 
-/*    // Uloha 2
-    if(risingEdgeOfRegulating || (lidarDataCounter%20==0 && regulating)){
-        if(checkIfPointIsInRobotsWay()){
+    // Uloha 2
+    if((risingEdgeOfRegulating || (lidarDataCounter%20==0)) && pointsModel->rowCount() > 0){
+        risingEdgeOfRegulating = false;
+        if(checkIfPointIsInRobotsWay(pointsModel->front())){
             cout << "There is a barier on the way to point!" << endl;
-            pointsModel->pop_front();
-            toogleRegulationButton();
+
+            findNearestGap();
+
+//            pointsModel->pop_back();
+//            toogleRegulationButton();
 
         }
     }
-*/
+
 
 //    // U3
 //    for(int k=0;k<copyOfLaserData.numberOfScans/*360*/;k++)
 //    {
 //        if(mapping && copyOfLaserData.Data[k].scanDistance > 130 && copyOfLaserData.Data[k].scanDistance < 3000 && !(copyOfLaserData.Data[k].scanDistance < 640 && copyOfLaserData.Data[k].scanDistance > 700)){
-//            float x = state.x + copyOfLaserData.Data[k].scanDistance*cos(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
+//            float x = state.x*1000 + copyOfLaserData.Data[k].scanDistance*cos(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
 //            float y = state.y*1000 + copyOfLaserData.Data[k].scanDistance*sin(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
 
 //            x /= gridSizeBlockInMM;
@@ -321,12 +453,12 @@ void MainWindow::on_pushButton_9_clicked() //start button
     state.y = 0.5;
 
     //U4
-    loadMap();
-    printMap();
-    expandWalls();
-    printMap();
-    mainLogigOfU4();
-    printMap();
+//    loadMap();
+//    printMap();
+//    expandWalls();
+//    printMap();
+//    mainLogigOfU4();
+//    printMap();
 
 
 
@@ -519,8 +651,7 @@ void MainWindow::on_pushButton_8_clicked()
 }
 
 void MainWindow::regulate(){
-//    return;
-    cout << "forwarSpeed: " << state.forwardSpeed << " angular speed: " << state.angularSpeed << endl;
+//    cout << "forwarSpeed: " << state.forwardSpeed << " angular speed: " << state.angularSpeed << endl;
 
     if(pointsModel->rowCount() == 0){
         // There are no more points to go
@@ -533,7 +664,9 @@ void MainWindow::regulate(){
     // Destination reached
     if((abs(state.x - destinationPoint.x) < 0.01) && (abs(state.y - destinationPoint.y) < 0.01)){
         pointsModel->pop_front();
+        risingEdgeOfRegulating = true;
         cout << "point x: " << destinationPoint.x << " y: " << destinationPoint.y << " reached!!" << endl;
+        return;
     }
 
     // Calculate the distance and angle between the robot and the destination
@@ -552,7 +685,7 @@ void MainWindow::regulate(){
         evaluateAngleRamp(angle);
         evaluateSaturation();
         robot.setRotationSpeed(state.angularSpeed);
-        cout << "angle is too big!  " << angle << endl;
+//        cout << "angle is too big!  " << angle << endl;
         return;
     }
 
@@ -656,26 +789,29 @@ void MainWindow::on_btnRegulation_clicked()
     toogleRegulationButton();
 }
 
-bool MainWindow::checkIfPointIsInRobotsWay(){
+bool MainWindow::checkIfPointIsInRobotsWay(Point destPoint){
 
-    Point destinationPoint = pointsModel->front();
-    float dx = destinationPoint.x - state.x;
-    float dy = destinationPoint.y - state.y;
+    float dx = destPoint.x - state.x;
+    float dy = destPoint.y - state.y;
     float distance = std::sqrt(dx*dx + dy*dy);
-    float angle = std::atan2(dy, dx) - state.angle;
+    float angle = std::atan2(dy, dx) - state.angle; // uhol medzi robotom a cielom
 
-    cout << angle << endl << endl;
+//    cout << angle << endl << endl;
 
     for(int k=0;k<copyOfLaserData.numberOfScans/*360*/;k++)
     {
+        if(!(copyOfLaserData.Data[k].scanDistance > 130 && copyOfLaserData.Data[k].scanDistance < 3000 && !(copyOfLaserData.Data[k].scanDistance < 640 && copyOfLaserData.Data[k].scanDistance > 700)))continue; // vyhod zle data
+
         float checkingAngle = ((360.0-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0)-angle;
+        checkingAngle=checkingAngle>3.14159265358979 ? checkingAngle-2*3.14159265358979:checkingAngle<-3.14159265358979?checkingAngle+2*3.14159265358979:checkingAngle;
 //        cout << angle << " < " << state.angle << endl;
-        if(abs(checkingAngle - state.angle) > 3.14159265358979/2)continue;
+        if(abs(checkingAngle ) > 3.14159265358979/2)continue;
         float b = (copyOfLaserData.Data[k].scanDistance/10)*sin(checkingAngle);
-        cout << "b: " << b << " checking angle: " << checkingAngle << endl;
+//        cout << "b: " << b << " checking angle: " << checkingAngle << endl;
         if(abs(b) < robotZone/2){
-            cout << "distance: " << copyOfLaserData.Data[k].scanDistance << " < " << distance*1000 << endl;
+//            cout << "distance: " << copyOfLaserData.Data[k].scanDistance << " < " << distance*1000 << endl;
             if(copyOfLaserData.Data[k].scanDistance < distance*1000){
+                indexOfBlockingPoint = k;
                 return true;
             }
         }
@@ -934,5 +1070,11 @@ void MainWindow::expandWalls(){
     // Use the expanded map for further processing
     map = expandedMap;
 
+}
+
+
+void MainWindow::on_pushButton_7_clicked()
+{
+    pointsModel->clear();
 }
 

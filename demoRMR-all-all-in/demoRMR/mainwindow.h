@@ -127,13 +127,28 @@ public:
         newItemInserted();
     }
 
+    void push_front(Point point){
+        m_points.push_front(point);
+        newItemInserted();
+    }
+
     void pop_front(){
         m_points.pop_front();
         newItemInserted();
     }
 
+    void pop_back(){
+        m_points.pop_back();
+        newItemInserted();
+    }
+
     Point front(){
         return m_points.front();
+    }
+
+    void clear(){
+        m_points.clear();
+        newItemInserted();
     }
 
 
@@ -150,7 +165,7 @@ private:
 
 
 struct RobotState {
-    double  x; // position in meters
+    double x; // position in meters
     double y; // position in meters
     double angle; // orientation in radians
     double forwardSpeed; //mm/s
@@ -205,6 +220,8 @@ private slots:
 
     void on_btnRegulation_clicked();
 
+    void on_pushButton_7_clicked();
+
 private:
 
     //--skuste tu nic nevymazat... pridavajte co chcete, ale pri odoberani by sa mohol stat nejaky drobny problem, co bude vyhadzovat chyby
@@ -250,7 +267,7 @@ private:
      void evaluateSaturation();
      void evaluateAngleRamp(float targetangle);
 //     bool checkIfPointIsInRobotsWay(float x, float y, float x1, float y1, float x2, float y2);
-     bool checkIfPointIsInRobotsWay();
+     bool checkIfPointIsInRobotsWay(Point destPoint);
 
      int robotZone = 30;
 
@@ -258,7 +275,7 @@ private:
      int gridSizeBlockInMM = 100;
      int rows = 10;
      int cols  = 10;
-     vector<vector<int>> map;  // initialize with zeros
+     vector<vector<int>> map;  // initialize with zero
 
      void printMap();
      void save_map();
@@ -268,6 +285,13 @@ private:
      void floodFill(vector<vector<int>>& map, int row, int col);
      Direction checkDirection(int workingRow, int workingCollumn);
      void expandWalls();
+
+     int indexOfBlockingPoint = 0;
+     void findNearestGap();
+     float getPointsDistance(Point a, Point b);
+     int upEdgeIndex = 0;
+     int lowEdgeIndex = 0;
+
 
 
 public slots:

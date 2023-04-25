@@ -140,6 +140,13 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="2">
+       <widget class="QPushButton" name="pushButton_7">
+        <property name="text">
+         <string>ClearPoints</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </item>
     <item row="2" column="1">
@@ -204,14 +211,14 @@
         <item row="0" column="1">
          <widget class="QLineEdit" name="leXpoint">
           <property name="text">
-           <string>1</string>
+           <string>4</string>
           </property>
          </widget>
         </item>
         <item row="1" column="1">
          <widget class="QLineEdit" name="leYpoint">
           <property name="text">
-           <string>0</string>
+           <string>0.5</string>
           </property>
          </widget>
         </item>
