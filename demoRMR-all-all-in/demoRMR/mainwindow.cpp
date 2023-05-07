@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
 
     //tu je napevno nastavena ip. treba zmenit na to co ste si zadali do text boxu alebo nejaku inu pevnu. co bude spravna
-    ipaddress="127.0.0.1";//192.168.1.14toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
+    ipaddress="192.168.1.14";//192.168.1.14toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
   //  cap.open("http://192.168.1.11:8000/stream.mjpg");
     ui->setupUi(this);
     datacounter=0;
@@ -51,7 +51,7 @@ MainWindow::~MainWindow()
 void MainWindow::paintEvent(QPaintEvent *event)
 {
     paintEventCounter++;
-
+//    doConvolution();
     QPainter painter(this);
     ///prekreslujem obrazovku len vtedy, ked viem ze mam nove data. paintevent sa
     /// moze pochopitelne zavolat aj z inych dovodov, napriklad zmena velkosti okna
@@ -65,18 +65,10 @@ void MainWindow::paintEvent(QPaintEvent *event)
     rect.translate(0,15);
     painter.drawRect(rect);
 
-//u2
-    std::vector<PointI> wall_endpoints;
-    std::vector<PointI> segments;
-    PointI prev_point;
-    PointI cur_point;
-    PointI first_point;
-    float distance;
-
 
     if(useCamera1==true && actIndex>-1)/// ak zobrazujem data z kamery a aspon niektory frame vo vectore je naplneny
     {
-        std::cout<<actIndex<<std::endl;
+//        std::cout<<actIndex<<std::endl;
         QImage image = QImage((uchar*)frame[actIndex].data, frame[actIndex].cols, frame[actIndex].rows, frame[actIndex].step, QImage::Format_RGB888);//kopirovanie cvmat do qimage
         painter.drawImage(rect,image.rgbSwapped());
     }
@@ -89,20 +81,28 @@ void MainWindow::paintEvent(QPaintEvent *event)
             painter.setPen(pero);
             //teraz tu kreslime random udaje... vykreslite to co treba... t.j. data z lidaru
          //   std::cout<<copyOfLaserData.numberOfScans<<std::endl;
-            for(int k=0;k<copyOfLaserData.numberOfScans/*360*/;k++)
+
+            for(int k=0, i = 0;k<copyOfLaserData.numberOfScans/*360*/;k++)
             {
                 int dist=copyOfLaserData.Data[k].scanDistance/20; ///vzdialenost nahodne predelena 20 aby to nejako vyzeralo v okne.. zmen podla uvazenia
                 int xp=rect.width()-(rect.width()/2+dist*2*sin((360.0-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0))+rect.topLeft().x(); //prepocet do obrazovky
                 int yp=rect.height()-(rect.height()/2+dist*2*cos((360.0-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0))+rect.topLeft().y();//prepocet do obrazovky
 
+                pero.setColor(Qt::green);
+                if(i < convolutionResults.size() && k == convolutionResults[i].index){
+                    i++;
+                    pero.setColor(Qt::red);
+                }
+
                 if(rect.contains(xp,yp))//ak je bod vo vnutri nasho obdlznika tak iba vtedy budem chciet kreslit
                 {
-                    pero.setColor(Qt::green);
-                    if(k == 0)pero.setColor(Qt::yellow);
-                    if(k == 1)pero.setColor(Qt::red);
-                    if(k == upEdgeIndex)pero.setColor(Qt::magenta);
-                    if(k == lowEdgeIndex)pero.setColor(Qt::cyan);
+//                    pero.setColor(Qt::green);
+//                    if(k == 0)pero.setColor(Qt::yellow);
+//                    if(k == 1)pero.setColor(Qt::red);
+//                    if(k == upEdgeIndex)pero.setColor(Qt::magenta);
+                    if(k == k_wall)pero.setColor(Qt::magenta);
                     if(k == indexOfBlockingPoint)pero.setColor(Qt::white);
+
                     painter.setPen(pero);
                     painter.drawEllipse(QPoint(xp, yp),2,2);
                 }               
@@ -190,6 +190,11 @@ void MainWindow::paintEvent(QPaintEvent *event)
             pero.setColor(Qt::white);
             painter.setPen(pero);
             painter.drawEllipse(QPoint(rect.topLeft().x()+rect.width()/2, rect.topLeft().y()+rect.height()/2),2,2);
+            int xp=rect.width()-(rect.width()/2+newDistance/10*sin((360.0-newAngle)*3.14159/180.0))+rect.topLeft().x(); //prepocet do obrazovky
+            int yp=rect.height()-(rect.height()/2+newDistance/10*cos((360.0-newAngle)*3.14159/180.0))+rect.topLeft().y();//prepocet do obrazovky
+            pero.setColor(Qt::red);
+            painter.setPen(pero);
+            painter.drawEllipse(QPoint(xp, yp),2,2);
         }
     }
 }
@@ -228,10 +233,16 @@ int MainWindow::processThisRobot(TKobukiData robotdata)
 ///TU PISTE KOD... TOTO JE TO MIESTO KED NEVIETE KDE ZACAT,TAK JE TO NAOZAJ TU. AK AJ TAK NEVIETE, SPYTAJTE SA CVICIACEHO MA TU NATO STRING KTORY DA DO HLADANIA XXX
 
     updateRobotState(robotdata.EncoderLeft, robotdata.EncoderRight);
+    state.angle=state.angle>3.14159265358979 ? state.angle-2*3.14159265358979:state.angle<-3.14159265358979?state.angle+2*3.14159265358979:state.angle;
+
+
+
     if(regulating)regulate();
 
     if(datacounter%5)
     {
+
+
         ///ak nastavite hodnoty priamo do prvkov okna,ako je to na tychto zakomentovanych riadkoch tak sa moze stat ze vam program padne
                 // ui->lineEdit_2->setText(QString::number(robotdata.EncoderRight));
                 //ui->lineEdit_3->setText(QString::number(robotdata.EncoderLeft));
@@ -264,7 +275,7 @@ void MainWindow::findNearestGap(){
     Point upPoint;
     Point lowPoint;
 
-    cout << "k is: " << indexOfBlockingPoint << endl;
+//    cout << "k is: " << indexOfBlockingPoint << endl;
     for(int k = indexOfBlockingPoint, i = indexOfBlockingPoint; k<indexOfBlockingPoint+copyOfLaserData.numberOfScans/*360*/; k++, i++){
         i = k % copyOfLaserData.numberOfScans;
         float x = state.x + copyOfLaserData.Data[i].scanDistance/1000*cos(state.angle+(360-copyOfLaserData.Data[i].scanAngle)*3.14159/180.0);
@@ -276,7 +287,7 @@ void MainWindow::findNearestGap(){
         distance = getPointsDistance(cur_point, prev_point);
         if (distance > robotZone/100.0*2)// /100 is to change cm to m
         {
-            cout << "up edge found! " << i << endl;
+//            cout << "up edge found! " << i << endl;
             upPoint = prev_point;
             break;
         }
@@ -295,9 +306,9 @@ void MainWindow::findNearestGap(){
         if(k == indexOfBlockingPoint)first_point = prev_point = Point{x, y};
         cur_point = Point{x, y};
         distance = getPointsDistance(cur_point, prev_point);
-        if (distance > robotZone/100.0*2)// /10 is to change cm to m
+        if (distance > robotZone/100.0*2)// /100 is to change cm to mm
         {
-            cout << "low edge found! " << i << endl;
+//            cout << "low edge found! " << i << endl;
             lowPoint = prev_point;
             break;
         }
@@ -317,14 +328,13 @@ void MainWindow::findNearestGap(){
         float newDistance = sqrtf(oldDistance*oldDistance + r*r);
         float newAngle = (360-copyOfLaserData.Data[lowEdgeIndex].scanAngle)*3.14159/180.0 + atan2(r, oldDistance);
         newDistance*=1.2;
-//        newAngle*=1.05;
         float x = state.x + newDistance*cos(state.angle+newAngle);
         float y = state.y + newDistance*sin(state.angle+newAngle);
         bool free = checkIfPointIsInRobotsWay(Point{x,y});
         risingEdgeOfRegulating = true;
-        if(risingEdgeOfRegulating){
+        if(!free){
             pointsModel->push_front(Point{x,y});
-            cout << "inserting low point. X: " << x << " Y: " << y << endl;
+//            cout << "inserting low point. X: " << x << " Y: " << y << endl;
         }
         else{
             float oldDistance = copyOfLaserData.Data[lowEdgeIndex].scanDistance/1000;
@@ -339,7 +349,7 @@ void MainWindow::findNearestGap(){
             risingEdgeOfRegulating = true;
             if(!free){
                 pointsModel->push_front(Point{x,y});
-                cout << "iinserting low point. X: " << x << " Y: " << y << endl;
+//                cout << "iinserting low point. X: " << x << " Y: " << y << endl;
             }
         }
 
@@ -356,7 +366,7 @@ void MainWindow::findNearestGap(){
         risingEdgeOfRegulating = true;
         if(!free){
             pointsModel->push_front(Point{x,y});
-            cout << "inserting up point. X: " << x << " Y: " << y << endl;
+//            cout << "inserting up point. X: " << x << " Y: " << y << endl;
         }else {
             float oldDistance = copyOfLaserData.Data[upEdgeIndex].scanDistance/1000;
             float r = -robotZone/100.0/1.2;
@@ -369,31 +379,99 @@ void MainWindow::findNearestGap(){
             risingEdgeOfRegulating = true;
             if(!free){
                 pointsModel->push_front(Point{x,y});
-                cout << "iinserting up point. X: " << x << " Y: " << y << endl;
+//                cout << "iinserting up point. X: " << x << " Y: " << y << endl;
             }
         }
     }
 }
 
+void MainWindow::wallFollowing(){
+
+    double minDistance = copyOfLaserData.Data->scanDistance;
+    double angleOfMinDistance = copyOfLaserData.Data->scanAngle;
+    for(int k=1;k<copyOfLaserData.numberOfScans/*360*/;k++)
+    {
+        if(!(copyOfLaserData.Data[k].scanDistance > 130 && copyOfLaserData.Data[k].scanDistance < 3000 && !(copyOfLaserData.Data[k].scanDistance < 640 && copyOfLaserData.Data[k].scanDistance > 700)))continue; // vyhod zle data
+        if(copyOfLaserData.Data[k].scanDistance < minDistance){
+            minDistance = copyOfLaserData.Data[k].scanDistance;
+            angleOfMinDistance = copyOfLaserData.Data[k].scanAngle;
+            k_wall = k;
+        }
+    }
+
+    float wantedRobotDistance = 450;
+    float angleShift = (-90) * (rightWall ? 1 : -1);
+    angleShift += (minDistance - wantedRobotDistance)/5*(rightWall ? 1 : -1);
+    newDistance = minDistance < 600 ? 600 : minDistance;
+    newAngle = angleOfMinDistance + angleShift;
+    newAngle=newAngle>180 ? newAngle-360:newAngle<-180?newAngle+360:newAngle;
+//    newAngle=newAngle>PI ? newAngle-PI*2:newAngle<-PI?newAngle+PI*2:newAngle;
+
+
+
+
+    float x = state.x*1000 + minDistance*cos(state.angle+(360-angleOfMinDistance)*3.14159/180.0);
+    float y = state.y*1000 + minDistance*sin(state.angle+(360-angleOfMinDistance)*3.14159/180.0);
+//    x_wall_follow = (x*cos(PI/2)+y*sin(PI/2))/1000;
+//    y_wall_follow = (-x*sin(PI/2)+y*cos(PI/2))/1000;
+    x_wall_follow = (state.x*1000 + newDistance*cos(state.angle+(360-newAngle)*3.14159/180.0))/1000;
+    y_wall_follow = (state.y*1000 + newDistance*sin(state.angle+(360-newAngle)*3.14159/180.0))/1000;
+//    cout << "index of nearest point: " << k_wall << endl;
+    cout << "x_wall: " << x/1000 << ", y_wall: " << y/1000 << ", angle: " << angleOfMinDistance << ", distance: " << minDistance/1000 << endl;
+//    cout << "x_new: " << x_wall_follow << ", y_new: " << y_wall_follow << endl;
+    cout << "new engle: " << newAngle << ", angleShift: " << angleShift << endl;
+}
+
+
 int MainWindow::processThisLidar(LaserMeasurement laserData)
 {
 
+    memcpy(&copyOfLaserData,&laserData,sizeof(LaserMeasurement));
 
-    memcpy( &copyOfLaserData,&laserData,sizeof(LaserMeasurement));
+//    if(wallFolower){
+//        wallFollowing();
+//    }
     //tu mozete robit s datami z lidaru.. napriklad najst prekazky, zapisat do mapy. naplanovat ako sa prekazke vyhnut.
     // ale nic vypoctovo narocne - to iste vlakno ktore cita data z lidaru#
-
     // Uloha 2
     if((risingEdgeOfRegulating || (lidarDataCounter%20==0)) && pointsModel->rowCount() > 0){
         risingEdgeOfRegulating = false;
+
+
+        if(pointsModel->rowCount() > 1){
+            tmpPoint = pointsModel->back();
+//            distanceFromDestination = getPointsDistance(Point{(float)state.x, (float)state.y}, tmpPoint);
+    //            cout << distanceFromDestination << ", " << oldDistanceFromDestination << endl;
+//            if(!wallFolower && oldDistanceFromDestination < distanceFromDestination){
+//                lastBeforeDistanceFromDestination = distanceFromDestination;
+//                wallFolower = true;
+//                pointsModel->pop_front();
+//                cout << "wallFolower: " << wallFolower << endl;
+//            }
+//            oldDistanceFromDestination = distanceFromDestination;
+
+//        }else if(!wallFolower){
+//            oldDistanceFromDestination = 9999;
+//            distanceFromDestination = 9999;
+        }
+//        else if(wallFolower){
+//            distanceFromDestination = getPointsDistance(Point{(float)state.x, (float)state.y}, tmpPoint);
+//    //            cout << distanceFromDestination << ", last: " << lastBeforeDistanceFromDestination << endl;
+//            if(lastBeforeDistanceFromDestination > distanceFromDestination && !checkIfPointIsInRobotsWay(tmpPoint)){
+//                wallFolower = false;
+//                cout << "wallFolower: " << wallFolower << endl;
+//            }
+//        }
+
+
         if(checkIfPointIsInRobotsWay(pointsModel->front())){
             cout << "There is a barier on the way to point!" << endl;
 
-            findNearestGap();
+            if(wallFolower){
 
-//            pointsModel->pop_back();
-//            toogleRegulationButton();
-
+            }else{
+                findNearestGap();
+            }
         }
     }
 
@@ -444,6 +522,7 @@ int MainWindow::processThisCamera(cv::Mat cameraData)
 void MainWindow::on_pushButton_9_clicked() //start button
 {
     if(connected){
+        R = !R;
         return;
     }
 
@@ -582,35 +661,26 @@ void MainWindow::updateRobotState(long double encoderLeft, long double encoderRi
     // handle encoder overflow by adding or subtracting the maximum encoder value
     if (deltaEncoderLeft > ENCODER_MAX / 2) {
         deltaEncoderLeft -= ENCODER_MAX;
-        cout << "!!!!!!!!!!!!!!!!!!!!!" << endl;
     } else if (deltaEncoderLeft < -ENCODER_MAX / 2) {
         deltaEncoderLeft += ENCODER_MAX;
-        cout << "!!!!!!!!!!!!!!!!!!!!!" << endl;
     }
     if (deltaEncoderRight > ENCODER_MAX / 2) {
         deltaEncoderRight -= ENCODER_MAX;
-        cout << "!!!!!!!!!!!!!!!!!!!!!" << endl;
     } else if (deltaEncoderRight < -ENCODER_MAX / 2) {
         deltaEncoderRight += ENCODER_MAX;
-        cout << "!!!!!!!!!!!!!!!!!!!!!" << endl;
     }
 
     // calculate the distance traveled by each wheel
     long double distanceLeft = deltaEncoderLeft * tickToMeter;
     long double distanceRight = deltaEncoderRight * tickToMeter;
-//    cout << "DistanceLeft: " << distanceLeft;
-//    cout << " DistanceRight: " << distanceRight;
 
     // calculate the average distance traveled by the robot
     long double distance = (distanceLeft + distanceRight) / 2;
 
-//    // calculate the change in angle of the robot
+    // calculate the change in angle of the robot
     long double deltaAngle = (distanceRight - distanceLeft) / wheelbase;
 
     if(distanceRight == distanceLeft){
-
-    //    cout << " DeltaAngle: " << deltaAngle << endl;
-
         // update the robot's position and orientation
         state.x += distance * cos(state.angle + deltaAngle / 2);
         state.y += distance * sin(state.angle + deltaAngle / 2);
@@ -622,18 +692,7 @@ void MainWindow::updateRobotState(long double encoderLeft, long double encoderRi
         state.x += ((wheelbase*(distanceRight + distanceLeft))/(2*(distanceRight - distanceLeft)))*(sin(state.angle+deltaAngle)-sin(state.angle));
         state.y -= ((wheelbase*(distanceRight + distanceLeft))/(2*(distanceRight - distanceLeft)))*(cos(state.angle+deltaAngle)-cos(state.angle));
         state.angle += deltaAngle;
-
-
     }
-
-    //
-    // handle the possibility of the robot moving backwards
-//    if (distance < 0) {
-//        state.angle += 3.141592;
-//        state.x += distance * cos(state.angle + deltaAngle / 2);
-//        state.y += distance * sin(state.angle + deltaAngle / 2);
-//    }
-
     oldEncoderLeft = encoderLeft;
     oldEncoderRight = encoderRight;
 
@@ -645,33 +704,50 @@ void MainWindow::updateRobotState(long double encoderLeft, long double encoderRi
 void MainWindow::on_pushButton_8_clicked()
 {
     state.angle = 0;
-    state.x = 0.5;
-    state.y = 0.5;
+    state.x = 0;
+    state.y = 0;
     mapping = true;
 }
 
 void MainWindow::regulate(){
+    float dx;
+    float dy;
+
+    if(wallFolower){
+        dx = x_wall_follow - state.x;
+        dy = y_wall_follow - state.y;
+    }
+    else{
+        if(pointsModel->rowCount() == 0){
+            // There are no more points to go
+            toogleRegulationButton();
+            cout << "No points to go!" << endl;
+            return;
+        }
+        Point destinationPoint = pointsModel->front();
+
+
+    //    if(wallFolower && checkIfPointIsInRobotsWay(destinationPoint)){
+    //        pointsModel->pop_front();
+    //        cout << "cant reach the point, probably fake corner!" << endl;
+    //        return;
+    //    }
+
+        // Destination reached
+        if((abs(state.x - destinationPoint.x) < 0.01) && (abs(state.y - destinationPoint.y) < 0.01)){
+            pointsModel->pop_front();
+            risingEdgeOfRegulating = true;
+            cout << "point x: " << destinationPoint.x << " y: " << destinationPoint.y << " reached!!" << endl;
+            return;
+        }
+        cout << "x: " << x_wall_follow << ", y: " << y_wall_follow << endl;
+
+//         Calculate the distance and angle between the robot and the destination
+        dx = destinationPoint.x - state.x;
+        dy = destinationPoint.y - state.y;
+    }
 //    cout << "forwarSpeed: " << state.forwardSpeed << " angular speed: " << state.angularSpeed << endl;
 
-    if(pointsModel->rowCount() == 0){
-        // There are no more points to go
-        toogleRegulationButton();
-        cout << "No points to go!" << endl;
-        return;
-    }
-    Point destinationPoint = pointsModel->front();
-
-    // Destination reached
-    if((abs(state.x - destinationPoint.x) < 0.01) && (abs(state.y - destinationPoint.y) < 0.01)){
-        pointsModel->pop_front();
-        risingEdgeOfRegulating = true;
-        cout << "point x: " << destinationPoint.x << " y: " << destinationPoint.y << " reached!!" << endl;
-        return;
-    }
-
-    // Calculate the distance and angle between the robot and the destination
-    float dx = destinationPoint.x - state.x;
-    float dy = destinationPoint.y - state.y;
     float distance = std::sqrt(dx*dx + dy*dy);
     float angle = std::atan2(dy, dx) - state.angle;
 //    cout << "angle before:  " << angle << endl;
@@ -791,9 +867,11 @@ void MainWindow::on_btnRegulation_clicked()
 
 bool MainWindow::checkIfPointIsInRobotsWay(Point destPoint){
 
+//    cout << "checking for point: x: " << destPoint.x << " ,y: " << destPoint.y << endl;
     float dx = destPoint.x - state.x;
     float dy = destPoint.y - state.y;
     float distance = std::sqrt(dx*dx + dy*dy);
+//    float distance = std::sqrt(pow(destPoint.x - state.x, 2) + pow(destPoint.y - state.y, 2));
     float angle = std::atan2(dy, dx) - state.angle; // uhol medzi robotom a cielom
 
 //    cout << angle << endl << endl;
@@ -809,8 +887,8 @@ bool MainWindow::checkIfPointIsInRobotsWay(Point destPoint){
         float b = (copyOfLaserData.Data[k].scanDistance/10)*sin(checkingAngle);
 //        cout << "b: " << b << " checking angle: " << checkingAngle << endl;
         if(abs(b) < robotZone/2){
-//            cout << "distance: " << copyOfLaserData.Data[k].scanDistance << " < " << distance*1000 << endl;
             if(copyOfLaserData.Data[k].scanDistance < distance*1000){
+//                cout << "distance: " << copyOfLaserData.Data[k].scanDistance << " < " << distance*1000 << endl;
                 indexOfBlockingPoint = k;
                 return true;
             }
@@ -1076,5 +1154,152 @@ void MainWindow::expandWalls(){
 void MainWindow::on_pushButton_7_clicked()
 {
     pointsModel->clear();
+}
+
+void MainWindow::doConvolution(){
+    convolutionResults.clear();
+    float threshold = checkLineEdit(ui->lineEdit);
+    float threshold2 = checkLineEdit(ui->lineEdit_5);
+    float threshold3 = checkLineEdit(ui->lineEdit_6);
+    int pointShift = 2;
+
+//    double one = copyOfLaserData.Data[0].scanDistance;
+//    double two = copyOfLaserData.Data[1].scanDistance;
+//    for(int k=3; k<copyOfLaserData.numberOfScans/*360*/; k++)
+//    {
+//        if(one > two < copyOfLaserData.Data[k].scanDistance)
+//            convolutionResults.push_back(k);
+//        else if(one < two > copyOfLaserData.Data[k].scanDistance)
+//            convolutionResults.push_back(k);
+//        two = one;
+//        one = copyOfLaserData.Data[k].scanDistance;
+    float robotZoneInM = robotZone/100.0;
+    for(int k=pointShift;k<copyOfLaserData.numberOfScans-pointShift/*360*/;k++)
+    {
+        if(!(copyOfLaserData.Data[k].scanDistance > 130 && copyOfLaserData.Data[k].scanDistance < 3000 && !(copyOfLaserData.Data[k].scanDistance < 640 && copyOfLaserData.Data[k].scanDistance > 700)))continue; // vyhod zle data
+        if(fabs(copyOfLaserData.Data[k].scanDistance-0.5*copyOfLaserData.Data[k-1].scanDistance-0.5*copyOfLaserData.Data[k+1].scanDistance) > threshold/pow((threshold3/copyOfLaserData.Data[k].scanDistance), 1.5)){
+
+            // vypocet suradnic dvoch bodoh na stranach rohu a rohu
+            float x1 = state.x + copyOfLaserData.Data[k-pointShift].scanDistance/1000*cos(state.angle+(360-copyOfLaserData.Data[k-pointShift].scanAngle)*3.14159/180.0);
+            float y1 = state.y + copyOfLaserData.Data[k-pointShift].scanDistance/1000*sin(state.angle+(360-copyOfLaserData.Data[k-pointShift].scanAngle)*3.14159/180.0);
+            float x3 = state.x + copyOfLaserData.Data[k+pointShift].scanDistance/1000*cos(state.angle+(360-copyOfLaserData.Data[k+pointShift].scanAngle)*3.14159/180.0);
+            float y3 = state.y + copyOfLaserData.Data[k+pointShift].scanDistance/1000*sin(state.angle+(360-copyOfLaserData.Data[k+pointShift].scanAngle)*3.14159/180.0);
+            float x2 = state.x + copyOfLaserData.Data[k].scanDistance/1000*cos(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
+            float y2 = state.y + copyOfLaserData.Data[k].scanDistance/1000*sin(state.angle+(360-copyOfLaserData.Data[k].scanAngle)*3.14159/180.0);
+
+            // vypocet suradnice osi rohu
+            float mid_x = (x1 + x3) / 2;
+            float mid_y = (y1 + y3) / 2;
+
+
+//            float diff = sqrt(pow((x3 - x1),2) + pow((y3 - y1),2));
+            float diff_p1_x = mid_x - x1;
+            float diff_p1_y = mid_y - y1;
+            float diff_p3_x = mid_x - x3;
+            float diff_p3_y = mid_y - y3;
+
+            // zapametanie si znamienka pre jednotlive suradnice a body
+            int signum_p1_x = diff_p1_x < 0 ? -1 : 1;
+            int signum_p1_y = diff_p1_y < 0 ? -1 : 1;
+            int signum_p3_x = diff_p3_x < 0 ? -1 : 1;
+            int signum_p3_y = diff_p3_y < 0 ? -1 : 1;
+
+            // dat vvsetky rozdiely na rovnake znamienko
+            diff_p1_x = fabs(diff_p1_x);
+            diff_p1_y = fabs(diff_p1_y);
+            diff_p3_x = fabs(diff_p3_x);
+            diff_p3_y = fabs(diff_p3_y);
+
+            // vypocitat a zistit, ci sa robot nachadza blizsie k osi rohu ako k samotnemu rohu
+            float diff_robot_midpoint = sqrt(pow((state.x - mid_x),2) + pow((state.y - mid_y),2));
+
+            // musi to byt fakovy roh, neexsituje ze by mohlo byt toto tak blizko
+            if(sqrt(pow((x2 - mid_x),2) + pow((y2 - mid_y),2)) < threshold2)continue;
+
+            int signum = copyOfLaserData.Data[k].scanDistance/1000 > diff_robot_midpoint ? 1 : -1;
+
+            // vsetky rozdiely dat na -1 ak je robot z druhej strany
+            diff_p1_x *= signum;
+            diff_p1_y *= signum;
+            diff_p3_x *= signum;
+            diff_p3_y *= signum;
+
+            // zistenie, ktora strana je viac x-ova a ktora y-lonova
+            if(fabs(x1 - x2) < fabs(y1 - y2)){ // Viac stena suradnice - y
+
+                // vytvorenie x suradnice pre robota
+                if(diff_p1_x < robotZoneInM){
+                    mid_x += (robotZoneInM - diff_p1_x*signum)*signum_p1_x*signum;
+                }
+
+                // vytvorenie y suradnice pre robota
+                if(diff_p3_y < robotZoneInM){
+                    mid_y += (robotZoneInM - diff_p3_y*signum)*signum_p3_y*signum;
+                }
+
+            }else{ // Viac stena suradnice - x
+
+                // vytvorenie y suradnice pre robota
+                if(diff_p1_y < robotZoneInM){
+                    mid_y += (robotZoneInM - diff_p1_y*signum)*signum_p1_y*signum;
+                }
+
+                // vytvorenie x suradnice pre robota
+                if(diff_p3_x < robotZoneInM){
+                    mid_x += (robotZoneInM - diff_p3_x*signum)*signum_p3_x*signum;
+                }
+
+            }
+
+
+            ///////////////////////////////////////////////////////////
+//            float diff_x = mid_x - state.x;
+//            float diff_y = mid_y - state.y;
+
+//            if(diff_x < diff_y && diff_x < robotZoneInM){
+//                mid_x += diff_x - robotZoneInM*diff_x<0?-1:1;
+//                mid_y
+//            }
+
+//            float smaller_diff = diff_x < diff_y ? diff_x : diff_y;
+
+//            if(smaller_diff < robotZoneInM){
+//                mid_x += smaller_diff - robotZoneInM;
+//                mid_y += smaller_diff - robotZoneInM;
+//            }
+
+            convolutionResults.push_back(ConvolutionPoint{k, Point{mid_x, mid_y}});
+            k+=4;
+        }
+
+    }
+    CheckForNewCorners();
+}
+
+void MainWindow::CheckForNewCorners(){
+    for (const auto& p1 : convolutionResults) {
+        bool found = false;
+        float distance;
+        for (const auto& p2 : AllCornersPoints) {
+          distance = std::hypot(p1.point.x - p2.x, p1.point.y - p2.y);
+          if (distance < cornerPointsThreshold) {
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          cout << "new corner found, x: " << p1.point.x << ", y: " << p1.point.y << ", distance: " << distance << endl;
+          AllCornersPoints.push_back(p1.point);
+          pointsModel->push_back(p1.point);
+        }
+    }
+}
+
+void MainWindow::on_pushButton_10_clicked()
+{
+    wallFolower = !wallFolower;
+    toogleRegulationButton();
+    cout << "switch" << endl;
 }
 

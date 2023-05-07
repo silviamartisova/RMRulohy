@@ -49,6 +49,11 @@ struct PointI {
     int y;
 };
 
+struct ConvolutionPoint {
+    int index;
+    Point point;
+};
+
 struct Node {
     int row, col, val;
     Node(int r, int c, int v) : row(r), col(c), val(v) {}
@@ -146,6 +151,10 @@ public:
         return m_points.front();
     }
 
+    Point back(){
+        return m_points.back();
+    }
+
     void clear(){
         m_points.clear();
         newItemInserted();
@@ -170,6 +179,10 @@ struct RobotState {
     double angle; // orientation in radians
     double forwardSpeed; //mm/s
     double angularSpeed; //omega/s
+};
+
+struct RobotSidesPoints{
+    double sides[4]; // top, right, bot, left
 };
 
 namespace Ui {
@@ -222,6 +235,8 @@ private slots:
 
     void on_pushButton_7_clicked();
 
+    void on_pushButton_10_clicked();
+
 private:
 
     //--skuste tu nic nevymazat... pridavajte co chcete, ale pri odoberani by sa mohol stat nejaky drobny problem, co bude vyhadzovat chyby
@@ -245,14 +260,16 @@ private:
      const unsigned short ENCODER_MAX = 65535;  // define maximum encoder value
      float regulatorTranslateProportionalElement = 2000;
      float regulatorAngularProportionalElement = 3.141592*2;
-     int rampTranslateConstant = 10; // mm/s
+     int rampTranslateConstant = 20; // mm/s
      float rampAngularConstant = 0.1; //omega/s
-     int translateSaturationValue = 350;//mm/s;
+     int translateSaturationValue = 1000;//mm/s;
      float angularSaturationValue = 3.14159/2;//omega/s
 
      long double oldEncoderLeft;
      long double oldEncoderRight;
      RobotState state = {0, 0, 0}; // starting at (0, 0)
+     RobotSidesPoints sidesPoints;
+     void callculateRobotSidespoints(int shift);
      PointTableModel *pointsModel;
      std::chrono::steady_clock::time_point regulation_start_time;
      int wall_edge_detect_frequenc = 2;
@@ -269,7 +286,7 @@ private:
 //     bool checkIfPointIsInRobotsWay(float x, float y, float x1, float y1, float x2, float y2);
      bool checkIfPointIsInRobotsWay(Point destPoint);
 
-     int robotZone = 30;
+     int robotZone = 40;
 
      bool mapping = false;
      int gridSizeBlockInMM = 100;
@@ -291,8 +308,26 @@ private:
      float getPointsDistance(Point a, Point b);
      int upEdgeIndex = 0;
      int lowEdgeIndex = 0;
-
-
+     void doConvolution();
+     vector<ConvolutionPoint> convolutionResults;
+     vector<Point> AllCornersPoints;
+     float cornerPointsThreshold = 0.15; //15cm
+     bool wallFolower = false;
+     void CheckForNewCorners();
+     void wallFollowing();
+     bool R = true;
+     float lastBeforeDistanceFromDestination = 0;
+     float oldDistanceFromDestination = 0;
+     float distanceFromDestination = 0;
+     Point tmpPoint;
+     int infinityLoopChecker = 0;
+//     void infinityLoopBraker();
+     float x_wall_follow =0;
+     float y_wall_follow =0;
+     int k_wall = 0;
+     double newDistance;
+     double newAngle;
+     bool rightWall = false;
 
 public slots:
      void setUiValues();
