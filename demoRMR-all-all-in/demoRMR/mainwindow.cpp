@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
 
     //tu je napevno nastavena ip. treba zmenit na to co ste si zadali do text boxu alebo nejaku inu pevnu. co bude spravna
-    ipaddress="192.168.1.14";//192.168.1.14toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
+    ipaddress="127.0.0.1";//192.168.1.14toto je na niektory realny robot.. na lokal budete davat "127.0.0.1"
   //  cap.open("http://192.168.1.11:8000/stream.mjpg");
     ui->setupUi(this);
     datacounter=0;
@@ -399,7 +399,7 @@ void MainWindow::wallFollowing(){
         }
     }
 
-    float wantedRobotDistance = 450;
+    float wantedRobotDistance = 400;
     float angleShift = (-90) * (rightWall ? 1 : -1);
     angleShift += (minDistance - wantedRobotDistance)/5*(rightWall ? 1 : -1);
     newDistance = minDistance < 600 ? 600 : minDistance;
@@ -428,9 +428,9 @@ int MainWindow::processThisLidar(LaserMeasurement laserData)
 
     memcpy(&copyOfLaserData,&laserData,sizeof(LaserMeasurement));
 
-//    if(wallFolower){
-//        wallFollowing();
-//    }
+    if(wallFolower){
+        wallFollowing();
+    }
     //tu mozete robit s datami z lidaru.. napriklad najst prekazky, zapisat do mapy. naplanovat ako sa prekazke vyhnut.
     // ale nic vypoctovo narocne - to iste vlakno ktore cita data z lidaru#
     // Uloha 2
@@ -440,28 +440,28 @@ int MainWindow::processThisLidar(LaserMeasurement laserData)
 
         if(pointsModel->rowCount() > 1){
             tmpPoint = pointsModel->back();
-//            distanceFromDestination = getPointsDistance(Point{(float)state.x, (float)state.y}, tmpPoint);
-    //            cout << distanceFromDestination << ", " << oldDistanceFromDestination << endl;
-//            if(!wallFolower && oldDistanceFromDestination < distanceFromDestination){
-//                lastBeforeDistanceFromDestination = distanceFromDestination;
-//                wallFolower = true;
-//                pointsModel->pop_front();
-//                cout << "wallFolower: " << wallFolower << endl;
-//            }
-//            oldDistanceFromDestination = distanceFromDestination;
+            distanceFromDestination = getPointsDistance(Point{(float)state.x, (float)state.y}, tmpPoint);
+                cout << distanceFromDestination << ", " << oldDistanceFromDestination << endl;
+            if(!wallFolower && oldDistanceFromDestination < distanceFromDestination){
+                lastBeforeDistanceFromDestination = distanceFromDestination;
+                wallFolower = true;
+                pointsModel->pop_front();
+                cout << "wallFolower: " << wallFolower << endl;
+            }
+            oldDistanceFromDestination = distanceFromDestination;
 
-//        }else if(!wallFolower){
-//            oldDistanceFromDestination = 9999;
-//            distanceFromDestination = 9999;
+        }else if(!wallFolower){
+            oldDistanceFromDestination = 9999;
+            distanceFromDestination = 9999;
         }
-//        else if(wallFolower){
-//            distanceFromDestination = getPointsDistance(Point{(float)state.x, (float)state.y}, tmpPoint);
-//    //            cout << distanceFromDestination << ", last: " << lastBeforeDistanceFromDestination << endl;
-//            if(lastBeforeDistanceFromDestination > distanceFromDestination && !checkIfPointIsInRobotsWay(tmpPoint)){
-//                wallFolower = false;
-//                cout << "wallFolower: " << wallFolower << endl;
-//            }
-//        }
+        else if(wallFolower){
+            distanceFromDestination = getPointsDistance(Point{(float)state.x, (float)state.y}, tmpPoint);
+    //            cout << distanceFromDestination << ", last: " << lastBeforeDistanceFromDestination << endl;
+            if(lastBeforeDistanceFromDestination > distanceFromDestination && !checkIfPointIsInRobotsWay(tmpPoint)){
+                wallFolower = false;
+                cout << "wallFolower: " << wallFolower << endl;
+            }
+        }
 
 
         if(checkIfPointIsInRobotsWay(pointsModel->front())){
@@ -704,8 +704,8 @@ void MainWindow::updateRobotState(long double encoderLeft, long double encoderRi
 void MainWindow::on_pushButton_8_clicked()
 {
     state.angle = 0;
-    state.x = 0;
-    state.y = 0;
+    state.x = 0.5;
+    state.y = 0.5;
     mapping = true;
 }
 

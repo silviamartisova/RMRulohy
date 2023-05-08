@@ -260,9 +260,9 @@ private:
      const unsigned short ENCODER_MAX = 65535;  // define maximum encoder value
      float regulatorTranslateProportionalElement = 2000;
      float regulatorAngularProportionalElement = 3.141592*2;
-     int rampTranslateConstant = 20; // mm/s
+     int rampTranslateConstant = 10; // mm/s
      float rampAngularConstant = 0.1; //omega/s
-     int translateSaturationValue = 1000;//mm/s;
+     int translateSaturationValue = 350;//mm/s;
      float angularSaturationValue = 3.14159/2;//omega/s
 
      long double oldEncoderLeft;
@@ -327,7 +327,7 @@ private:
      int k_wall = 0;
      double newDistance;
      double newAngle;
-     bool rightWall = false;
+     bool rightWall = true;
 
 public slots:
      void setUiValues();
